@@ -1,0 +1,10 @@
+Extrato Conta Corrente 
+Conta ;12345678
+Período ;01/01/2021;02/01/2021;
+Depósito de Cheque ;0,00
+Saldo Disponível ;R$ 123,45
+Saldo Atual;R$ 123,45
+
+DATA LANÇAMENTO;HISTÓRICO;VALOR;SALDO
+01/01/2021;COMPRA CARTAO - COMPRA no estabelecimento SUPERMERCADO ABC; - R$ 1,00;125,45
+02/01/2021;COMPRA CARTAO - COMPRA no estabelecimento SUPERMERCADO ABC; - R$ 2,00;123,45
