@@ -6,10 +6,10 @@ if __name__ == "__main__":
     parser.add_argument('--filename', type=str, default=None, required=False)
     args = parser.parse_args()
     pegasus  = Pegasus(debug=True)
+    pegasus.load_dataframe()
+    pegasus.load_spreadsheet()
     if args.filename:
         pegasus.append_dataframe(args.filename)
-    pegasus.load_spreadsheet()
-    pegasus.load_dataframe()
     pegasus.transform()
     pegasus.export_csv()
     pegasus.export_xlsx()
