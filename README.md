@@ -96,7 +96,23 @@ To get a local copy up and running follow these simple steps.
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
+
+Fill the `template.xlsx` with needed information
+The tab `categorias` with each category following child category
+The tab `historico` is where you  associative table, the column HISTORICO contains the name
+and CATEGORIA for the sub category.
+
+After that, call the main script via CLI.
+
+```bash
+foo@bar$ python main.py --filename extrato_template.xlsx
+```
+
+> the first time you use the script, add --filename in prompt for load initial data.
+> for future data loading, check the extrato_template.csv if it was following the template schema
+
+the finance report will be in the same template.xlsx file on `report` tab
+
 
 _For more examples, please refer to the [Documentation](https://example.com)_
 
