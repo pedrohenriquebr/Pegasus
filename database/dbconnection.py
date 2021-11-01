@@ -1,7 +1,10 @@
 import os
+from typing import Any
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
+import pandas as pd
+from database.schema  import schema
 
 env = load_dotenv()
 
@@ -21,14 +24,16 @@ class DbConnection:
         self.client = gspread.authorize(self.creds)
     
     def connect(self,):
-        # CREATE A SPREADSHEET
         try:
-            sheet = self.client.open(SPREADSHEET_NAME)
+            self.sheet = self.client.open(SPREADSHEET_NAME)
         except:
             print("Spreadsheet not found")
             print("Create the spreadsheet first!")
             exit(0)
-        return sheet
+        return self.sheet
+    
+    def worksheet(self, name: str) -> pd.DataFrame:
+        return schema[name].append(self.sheet.worksheet(name).get_all_records())
 
 
 
