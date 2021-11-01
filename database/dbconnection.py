@@ -2,11 +2,9 @@ import os
 from typing import Any
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from dotenv import load_dotenv
 import pandas as pd
 from database.schema  import schema
 
-env = load_dotenv()
 
 SPREADSHEET_NAME  = os.getenv('SPREADSHEET_NAME','Pegasus - DEV')
 USER_EMAIL = os.getenv('USER_EMAIL')
