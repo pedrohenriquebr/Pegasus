@@ -117,6 +117,21 @@ the finance report will be in the same template.xlsx file on `report` tab
 _For more examples, please refer to the [Documentation](https://example.com)_
 
 
+# Usage
+
+## local environment
+
+```bash
+$ pip install -r requirements.dev.txt
+$ waitress-serve --listen=*:8000 wsgi:app 
+```
+
+## Unix-like environment
+
+```bash
+$ pip install -r requirements.txt
+$ gunicorn wsgi:app
+```
 
 <!-- ROADMAP -->
 ## Roadmap
