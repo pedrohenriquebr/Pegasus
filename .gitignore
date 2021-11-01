@@ -3,5 +3,6 @@
 .json
 cache 
 .vscode
+.env
 __pycache__
 credentials.json
