@@ -1,5 +1,4 @@
-from flask import Flask, flash, request, redirect, url_for
-from flask import send_from_directory
+from flask import Flask, flash, request, redirect, url_for,send_from_directory,jsonify
 from dotenv import load_dotenv
 import database.dbconnection as dbconnection
 import  database.schema as schema
@@ -50,8 +49,9 @@ def upload_file():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            pegasus.import_statement(os.path.join(app.config['UPLOAD_FOLDER'], filename),'inter')
-            return redirect(url_for('download_file', name=filename))
+            pegasus.import_statement(os.path.join(app.config['UPLOAD_FOLDER'], filename),'inter',request.form.get('id_account',type=int))
+            # return 200 request
+            return jsonify({"status": "success"})
     return '''
     <!doctype html>
     <title>Upload new File</title>

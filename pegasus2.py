@@ -1,3 +1,4 @@
+from re import T
 import openpyxl
 from openpyxl.worksheet.table import Table
 from openpyxl.utils import get_column_letter
@@ -70,19 +71,30 @@ class Pegasus:
         self.TBL_Category = db.worksheet('TBL_Category')
         self.TBL_DescriptionCategory = db.worksheet('TBL_DescriptionCategory')
         self.DIM_NR_Income = schema['DIM_NR_Income']
+        self.TBL_Transactions = schema['TBL_Transactions']
     
-    def import_statement(self, statement_path: str, bank_name: str) -> None:
+    def import_statement(self, statement_path: str, bank_name: str, id_account: int) -> None:
         if bank_name == 'inter':
             self.tmp = adapters.bank_statement.inter.load_statement(statement_path)
         else:
             raise Exception('Bank not implemented')
         errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
-        if len(errors) > 0:
-            raise Exception(f'{len(errors)} erros encontrados')
         
-        self.base_df = pd.concat([self.base_df, self.tmp])
-        self.base_df = self.base_df.drop_duplicates()
-        self.base_df  = self.base_df.sort_values('DT_TransactionDate')
+        last_id  = self.TBL_Transactions.ID_Transaction.max()
+        if np.isnan(last_id):
+            last_id = 0
+        last_id = last_id + 1
+        self.tmp['ID_Transaction'] = pd.Series(list(range(last_id, last_id + len(self.tmp))))
+        self.tmp['ID_Account'] = pd.Series(id_account, index=self.tmp.index)
+        self.tmp['CD_Type'] = self.tmp['NR_Value'].apply(lambda x: 'Income' if x > 0 else 'Expense')
+        self.tmp['NR_Amount'] = self.tmp['NR_Value'].apply(lambda x: abs(x))
+        self.tmp['IC_Imported'] = True
+        self.tmp['DT_ImportedDate'] = pd.to_datetime('now')
+        self.tmp['DT_RegistrationDate'] = pd.to_datetime('now')
+        self.TBL_Transactions = pd.concat([self.TBL_Transactions, self.tmp.drop(['NR_Value'], axis=1)], sort=False)
+        # self.base_df = self.base_df.drop_duplicates()
+        self.TBL_Transactions  = self.TBL_Transactions.sort_values('ID_Transaction')
+        self.db.upsert('TBL_Transactions', self.TBL_Transactions)
 
     def load_data(self) -> None:
         self.base_df = self.db.worksheet('DW_Base')

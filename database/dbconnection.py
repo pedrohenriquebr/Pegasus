@@ -10,7 +10,6 @@ SPREADSHEET_NAME  = os.getenv('SPREADSHEET_NAME','Pegasus - DEV')
 USER_EMAIL = os.getenv('USER_EMAIL')
 
 
-
 class DbConnection:
     def __init__(self):
         # define the scope
@@ -32,6 +31,12 @@ class DbConnection:
     
     def worksheet(self, name: str) -> pd.DataFrame:
         return schema[name].append(self.sheet.worksheet(name).get_all_records())
+    
+    def upsert(self,name: str, dataframe: pd.DataFrame):
+        df = dataframe.copy()
+        for x in  df.select_dtypes(include=['datetime64','datetime64[ns]']).columns.tolist():
+            df[x] = df[x].dt.strftime('%Y-%m-%d %H:%M:%S')
+        self.sheet.worksheet(name).update([df.columns.values.tolist()] + df.fillna('null').values.tolist())
 
 
 
