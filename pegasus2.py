@@ -71,7 +71,7 @@ class Pegasus:
         self.TBL_Category = db.worksheet('TBL_Category')
         self.TBL_DescriptionCategory = db.worksheet('TBL_DescriptionCategory')
         self.DIM_NR_Income = schema['DIM_NR_Income']
-        self.TBL_Transactions = schema['TBL_Transactions']
+        self.TBL_Transactions = db.worksheet('TBL_Transactions')
     
     def import_statement(self, statement_path: str, bank_name: str, id_account: int) -> None:
         if bank_name == 'inter':
@@ -90,10 +90,12 @@ class Pegasus:
         self.tmp['NR_Amount'] = self.tmp['NR_Value'].apply(lambda x: abs(x))
         self.tmp['IC_Imported'] = True
         self.tmp['DT_ImportedDate'] = pd.to_datetime('now')
+        self.tmp['DT_ImportedDate'] = self.tmp['DT_ImportedDate'].astype('datetime64[ns]')
         self.tmp['DT_RegistrationDate'] = pd.to_datetime('now')
+        self.tmp['DT_RegistrationDate'] =self.tmp['DT_RegistrationDate'].astype('datetime64[ns]')
         self.TBL_Transactions = pd.concat([self.TBL_Transactions, self.tmp.drop(['NR_Value'], axis=1)], sort=False)
+        ## validações
         # self.base_df = self.base_df.drop_duplicates()
-        self.TBL_Transactions  = self.TBL_Transactions.sort_values('ID_Transaction')
         self.db.upsert('TBL_Transactions', self.TBL_Transactions)
 
     def load_data(self) -> None:

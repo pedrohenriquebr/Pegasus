@@ -29,12 +29,21 @@ class DbConnection:
             exit(0)
         return self.sheet
     
+    def map_table(self,table : str):
+        tbl = self.sheet.worksheet(table)
+        tbl = schema[table].append(pd.DataFrame(tbl.get_all_records()))
+        tbl = tbl.applymap(lambda x: None if x in ['null',''] else x)
+        tbl.fillna(0, inplace=True,)
+        for column in schema[table].columns:
+            tbl[column] = tbl[column].astype(schema[table][column].dtype)
+        return tbl
+    
     def worksheet(self, name: str) -> pd.DataFrame:
-        return schema[name].append(self.sheet.worksheet(name).get_all_records())
+        return self.map_table(name)
     
     def upsert(self,name: str, dataframe: pd.DataFrame):
         df = dataframe.copy()
-        for x in  df.select_dtypes(include=['datetime64','datetime64[ns]']).columns.tolist():
+        for x in  df.select_dtypes(include=['datetime64','datetime64[ns]','<M8[ns]']).columns.tolist():
             df[x] = df[x].dt.strftime('%Y-%m-%d %H:%M:%S')
         self.sheet.worksheet(name).update([df.columns.values.tolist()] + df.fillna('null').values.tolist())
 

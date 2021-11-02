@@ -1,8 +1,14 @@
 import pandas as pd
 import helpers.currency as currency
+import chardet
+
+def detect_encoding(file_path):
+    with open(file_path, 'rb') as f:
+        result = chardet.detect(f.read())
+    return result['encoding']
 
 def load_statement(statement_path):
-    tmp = pd.read_csv(open(statement_path, 'r'),delimiter=';',skiprows=7,
+    tmp = pd.read_csv(open(statement_path, 'r', encoding=detect_encoding(statement_path)),delimiter=';',skiprows=7,
         converters= {
             'VALOR': currency.convert_brl,
             'SALDO': currency.convert_brl,
