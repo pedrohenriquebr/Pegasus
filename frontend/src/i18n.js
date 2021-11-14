@@ -29,6 +29,11 @@ i18n
             add: 'Add',
             edit: 'Edit',
             delete: 'Delete',
+          },
+          labels: {
+            account: 'Account',
+            category: 'Category',
+            amount: 'Amount',
           }
         },
       },
@@ -48,7 +53,13 @@ i18n
             add: 'Adicionar',
             edit: 'Editar',
             delete: 'Excluir',
-          }
+          },
+          labels: {
+            account: 'Conta',
+            category: 'Categoria',
+            amount: 'Quantia',
+        },
+
         }
       }
     }
