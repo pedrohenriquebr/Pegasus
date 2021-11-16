@@ -25,10 +25,10 @@ class Repository(Generic[T]):
         self.pending = []
         self.primary_key_attr  = [x['attribute'] for x in self.model['__data'] if x['primary_key'] == True][0]
         self.primary_key_name  = [x['name'] for x in self.model['__data'] if x['primary_key'] == True][0]
+        self.is_autoincrement  = [x['auto_increment'] for x in self.model['__data'] if x['primary_key'] == True][0]
         self.name_to_attribute = {x['name']: x['attribute'] for x in self.model['__data']}
         self.attribute_to_name = {x['attribute']: x['name'] for x in self.model['__data']}
         
-    
     def get_attribute_by_name(self, attr,value):
         
 
@@ -121,23 +121,37 @@ class Repository(Generic[T]):
     def count(self, call: Callable):
         return len([x for x in self.get_all() if call(x)])
     
+    def _update_cells(self, df: pd.DataFrame):
+        # add the row
+        self._df_copy = df.copy()
+        self._df_copy = self._apply_columns_types(self._df_copy)
+
+        for x in  self._df_copy.select_dtypes(include=['datetime64','datetime64[ns]','<M8[ns]']).columns.tolist():
+            self._df_copy[x] = self._df_copy[x].apply(lambda x: None if pd.isnull(x) else x.strftime('%Y-%m-%d %H:%M:%S'))
+        self._df_copy = self._df_copy.fillna('null')
+        self.worksheet.update([self._df_copy.columns.values.tolist()] + self._df_copy.values.tolist())
+    
     def commit(self):
         # load the dataframe
         df = self.to_dataframe()
-        primary_key = self.primary_key_attr
+        self.primary_key_name = self.primary_key_name
 
         for operation in self.pending:
             obj  = operation['obj']
             if operation['operation'] == 'add':
-                if getattr(obj,primary_key) == None:
-                    raise Exception('Primary key is not set')
                 # check if the primary key already exists
-                if df[primary_key].isin([getattr(obj,primary_key)]).any():
+                if df[self.primary_key_name].isin([getattr(obj,self.primary_key_attr)]).any():
                     raise Exception('Primary key already exists')
+                
                 # get the name of the columns
+                # las id
+                self.worksheet.add_rows(1)
+                last_id = df[self.primary_key_name].max()
                 new_dict = self._object_to_dict(obj)
-                # add the row
-                df = df.append(new_dict, ignore_index=True)
+                if self.is_autoincrement:
+                    new_dict[self.primary_key_name] = last_id + 1
+                df = df.append(new_dict, ignore_index=True)        
+                self._update_cells(df)
             elif operation['operation'] == 'delete':
                 # get the name of the columns
                 primary_key_value = getattr(obj,self.primary_key_attr)
@@ -148,26 +162,21 @@ class Repository(Generic[T]):
                 # df = df[df[primary_key] != primary_key_value]
             elif operation['operation'] == 'update':
                # check the primary key
-                if getattr(obj,primary_key) == None:
+                if getattr(obj,self.primary_key_attr) == None:
                     raise Exception('Primary key is not set')
                 # check if the primary key if not exists
-                if not df[primary_key].isin([getattr(obj,primary_key)]).any():
+                if not df[self.primary_key_name].isin([getattr(obj,self.primary_key_attr)]).any():
                     raise Exception('Primary key does not exists')
                 
                 # get the name of the columns
                 new_dict = self._object_to_dict(obj,primary_key=True)
                 # update the row
-                df.loc[df[primary_key] == getattr(obj,primary_key), new_dict.keys()] = new_dict.values()
-                self._df_copy = df.copy()
-                self._df_copy = self._apply_columns_types(self._df_copy)
-
-                for x in  self._df_copy.select_dtypes(include=['datetime64','datetime64[ns]','<M8[ns]']).columns.tolist():
-                    self._df_copy[x] = self._df_copy[x].apply(lambda x: None if pd.isnull(x) else x.strftime('%Y-%m-%d %H:%M:%S'))
-                self._df_copy = self._df_copy.fillna('null')
-                self.worksheet.update([self._df_copy.columns.values.tolist()] + self._df_copy.values.tolist())
+                df.loc[df[self.primary_key_name] == getattr(obj,self.primary_key_attr), new_dict.keys()] = new_dict.values()
+                self._update_cells(df)
             else:
                 raise Exception('Unsupported operation -> ', operation['operation'])
         # save the dataframe
+        self.pending = []
 
         
         

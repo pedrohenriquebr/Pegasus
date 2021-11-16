@@ -1,35 +1,36 @@
 from database.dbconnection import entity, column
 
-@entity
+@entity()
 class TBL_Category: 
     @column(primary_key=True)
     def ID_Category(self) -> int:
        pass
     
-    @column
+    @column()
     def ID_CategoryParent(self) -> int:
        pass
 
     @column(length=250)
     def DS_Name(self) -> str:
         pass
+    
 
-    @column
+    @column()
     def NR_Level(self) -> int:
         pass
 
 
-@entity
+@entity()
 class TBL_Transactions:
     @column(primary_key=True)
     def ID_Transaction(self) -> int:
         pass
 
-    @column
+    @column()
     def ID_Account(self) -> int:
         pass
 
-    @column
+    @column()
     def ID_AccountDestination(self) -> int:
         pass
 
@@ -37,8 +38,8 @@ class TBL_Transactions:
     def CD_Type(self) -> str:
         pass
 
-    @column
-    def ID_Category(self) :
+    @column()
+    def ID_Category(self) -> int:
         pass
 
     @column(dtype='datetime')
@@ -49,11 +50,11 @@ class TBL_Transactions:
     def DT_RegistrationDate(self):
         pass
 
-    @column
+    @column()
     def NR_Amount(self) -> float:
         pass
 
-    @column
+    @column()
     def IC_Imported(self) -> bool:
         pass
 
@@ -70,9 +71,9 @@ class TBL_Transactions:
         pass
 
     @column(dtype='datetime')
-    def DT_ImportedDate(self) -> pd.Timestamp:
+    def DT_ImportedDate(self):
         pass
 
-    @column
+    @column()
     def NR_Balance(self) -> float:
         pass

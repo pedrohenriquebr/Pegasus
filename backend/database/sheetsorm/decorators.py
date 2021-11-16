@@ -91,7 +91,7 @@ def entity(worksheet:str=None):
         return wrapper
     return inner_model
 
-def column(name:str='',dtype:str='', length:int=200,primary_key:bool=False):
+def column(name:str='',dtype:str='', length:int=200,primary_key:bool=False,auto_increment=True):
     def inner_column(func: Callable):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -108,7 +108,9 @@ def column(name:str='',dtype:str='', length:int=200,primary_key:bool=False):
             # the length of the column
             'length': length,
             # if the column is a primary key
-            'primary_key': primary_key
+            'primary_key': primary_key,
+            # if the column is auto increment
+            'auto_increment': auto_increment
         }
         return wrapper
     return inner_column
