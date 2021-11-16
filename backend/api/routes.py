@@ -8,6 +8,7 @@ from api.db_connection import db
 
 transactions_service = TransactionsService(db)
 
+
 def download_file(name):
     return send_from_directory(os.path.abspath(config.UPLOAD_FOLDER), name)
  
@@ -29,8 +30,8 @@ def upload_file():
             return redirect(request.url)
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            pegasus.import_statement(os.path.join(app.config['UPLOAD_FOLDER'], filename),'inter',request.form.get('id_account',type=int))
+            # file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            # pegasus.import_statement(os.path.join(app.config['UPLOAD_FOLDER'], filename),'inter',request.form.get('id_account',type=int))
             # return 200 request
             return jsonify({"status": "success"})
     return '''
@@ -44,5 +45,5 @@ def upload_file():
     '''
 
 def search_transactions():
-    return jsonify(transactions_service.search_transactions(10))
+    return jsonify(transactions_service.search_transactions(request.args.get('offset',0,int), request.args.get('limit',10,int)))
     

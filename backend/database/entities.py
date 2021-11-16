@@ -29,9 +29,25 @@ class TBL_Transactions:
 class TBL_Account:
     ID_Account = column(int,primary_key=True, increment=True,required=True)
     ID_AccountGroup = column(int)
-    DT_CreatedDate = column(datetime)
+    DT_CreatedDate = column(datetime,required=True)
     NR_InitialAmount = column(float)
-    DS_Name = column(str(250))
+    DS_Name = column(str(250),required=True)
     NR_Number = column(str(250))
     DS_BankOfficeNumber = column(str(250))
     DS_Bank = column(str(250))
+
+@entity()
+class TBL_AccountGroup:
+    ID_AccountGroup  = column(int,primary_key=True, increment=True,required=True)
+    DS_Name  = column(str(250),required=True)
+
+
+@entity()
+class TBL_DescriptionCategory:
+    DS_Description  = column(str(250), required=True)
+    ID_Category = column(int,required=True) 
+
+@entity()
+class TBL_DescriptionTransfer:
+    DS_Description  = column(str(250), required=True)
+    ID_Transfer = column(int,required=True)
