@@ -13,8 +13,8 @@ nullable_values = {
     'int': 0,
     'float': 0.0,
     'bool': False,
-    'date': None,
-    'datetime': None,
+    'date': '',
+    'datetime': '',
     'time': None,
 
 }
@@ -23,7 +23,8 @@ class Repository(Generic[T]):
         self.worksheet  = worksheet
         self.model = model
         self.pending = []
-        self.primary_key  = [x['attribute'] for x in self.model['__data'] if x['primary_key'] == True][0]
+        self.primary_key_attr  = [x['attribute'] for x in self.model['__data'] if x['primary_key'] == True][0]
+        self.primary_key_name  = [x['name'] for x in self.model['__data'] if x['primary_key'] == True][0]
         self.name_to_attribute = {x['name']: x['attribute'] for x in self.model['__data']}
         self.attribute_to_name = {x['attribute']: x['name'] for x in self.model['__data']}
         
@@ -53,7 +54,6 @@ class Repository(Generic[T]):
         else:
             raise Exception('Unsupported type -> ', attr['dtype'], f'"{value}"')
     
-
     def to_dataframe(self) -> pd.DataFrame:
         temp_df  = DataFrame({
             column['name']: pd.Series(dtype=DTYPES[column['dtype']]) for column  in self.model['__data']
@@ -61,11 +61,7 @@ class Repository(Generic[T]):
 
         temp_df = temp_df.append(pd.DataFrame(self.worksheet.get_all_records()))
         temp_df = temp_df.applymap(lambda x: None if x in ['null',''] else x)
-        for column in temp_df.columns:
-             if temp_df[column].dtype == 'datetime64[ns]':
-                temp_df[column] = pd.to_datetime(temp_df[column])
-            else:
-                temp_df[column] = temp_df[column].astype(temp_df[column].dtype)
+        temp_df = self._apply_columns_types(temp_df)
         return temp_df
 
     def get_builtin(name) :
@@ -83,6 +79,17 @@ class Repository(Generic[T]):
     def _object_to_dict(self, obj: T, primary_key = False) -> dict:
         return {attr['name']: getattr(obj, attr['attribute']) for attr in self.model['__data'] if primary_key and  attr['primary_key'] or not attr['primary_key']}
     
+    def _apply_columns_types(self,_df: pd.DataFrame):
+        df = _df.copy()
+        date_columns = [x['name'] for x in self.model['__data'] if x['dtype'] in ['datetime']]
+        
+        for column in df.columns:
+             if column in date_columns:
+                df[column] = pd.to_datetime(df[column])
+             else:
+                df[column] = df[column].astype(df[column].dtype)
+        return df
+    
     def get_all(self) -> List[T]:
         return [self._sheet_row_to_object(row) for row in  self.worksheet.get_all_records()]
 
@@ -94,7 +101,7 @@ class Repository(Generic[T]):
     
     def update(self, obj: T):
         # check if the object is in the pending updates
-        search = [getattr(x['obj'], self.primary_key) == getattr(obj, self.primary_key) for x in self.pending]
+        search = [getattr(x['obj'], self.primary_key_attr) == getattr(obj, self.primary_key_attr) for x in self.pending]
         if not any(search):
             self.pending.append({'operation':'update', 'obj': obj})
         else:
@@ -114,11 +121,10 @@ class Repository(Generic[T]):
     def count(self, call: Callable):
         return len([x for x in self.get_all() if call(x)])
     
-    
     def commit(self):
         # load the dataframe
         df = self.to_dataframe()
-        primary_key = self.primary_key
+        primary_key = self.primary_key_attr
 
         for operation in self.pending:
             obj  = operation['obj']
@@ -134,9 +140,12 @@ class Repository(Generic[T]):
                 df = df.append(new_dict, ignore_index=True)
             elif operation['operation'] == 'delete':
                 # get the name of the columns
-                primary_key_value = getattr(obj,primary_key)
+                primary_key_value = getattr(obj,self.primary_key_attr)
                 # remove the row
-                df = df[df[primary_key] != primary_key_value]
+                self.worksheet.delete_rows(df[df[self.primary_key_name] == primary_key_value].index.tolist()[0]+2)
+                df.drop(df[df[self.primary_key_name] == primary_key_value].index, inplace=True)
+
+                # df = df[df[primary_key] != primary_key_value]
             elif operation['operation'] == 'update':
                # check the primary key
                 if getattr(obj,primary_key) == None:
@@ -149,14 +158,16 @@ class Repository(Generic[T]):
                 new_dict = self._object_to_dict(obj,primary_key=True)
                 # update the row
                 df.loc[df[primary_key] == getattr(obj,primary_key), new_dict.keys()] = new_dict.values()
+                self._df_copy = df.copy()
+                self._df_copy = self._apply_columns_types(self._df_copy)
+
+                for x in  self._df_copy.select_dtypes(include=['datetime64','datetime64[ns]','<M8[ns]']).columns.tolist():
+                    self._df_copy[x] = self._df_copy[x].apply(lambda x: None if pd.isnull(x) else x.strftime('%Y-%m-%d %H:%M:%S'))
+                self._df_copy = self._df_copy.fillna('null')
+                self.worksheet.update([self._df_copy.columns.values.tolist()] + self._df_copy.values.tolist())
             else:
                 raise Exception('Unsupported operation -> ', operation['operation'])
         # save the dataframe
 
-        self._df_copy = df.copy()
-        self._df_copy = self._df_copy.fillna('null')
-        for x in  self._df_copy.select_dtypes(include=['datetime64','datetime64[ns]','<M8[ns]']).columns.tolist():
-            self._df_copy[x] = self._df_copy[x].apply(lambda x: x.dt.strftime('%Y-%m-%d %H:%M:%S'))
-            self._df_copy[x] = self._df_copy[x].astype(str)
-        self.worksheet.update([self._df_copy.columns.values.tolist()] + self._df_copy.values.tolist())
+        
         

@@ -3,6 +3,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 import pandas as pd
 
+from .util import DTYPES
+
 from .repository import Repository
 
 T  = TypeVar('T')
@@ -50,8 +52,25 @@ class SheetsORM:
     def share(self, user_email: str, perm_type: str = 'user', role: str = 'writer'):
         self.sheet.share(user_email, perm_type, role)
     
+    def create_worksheet(self, T):
+        schema = T.__dict__['__model']['__schema']
+        self.sheet.add_worksheet(title=T.__dict__['__model']['__worksheet_name'], rows="600", cols=schema.shape[1])
+        self.upsert(T.__dict__['__model']['__worksheet_name'],schema)
+        
+    def get_dataframe_schema(self, T):
+        return  pd.DataFrame({
+            column['name']: pd.Series(dtype=DTYPES[column['dtype']]) for column  in T.__dict__['__model']['__data']})
+
     def get_repository(self,T ) -> Repository[T]:
-        return Repository[T](self.sheet.worksheet(T.__dict__['__model']['__worksheet_name']),T.__dict__['__model'])
+        _worksheet_name = T.__dict__['__model']['__worksheet_name']
+        try:
+            _ws = self.sheet.worksheet(_worksheet_name)
+        except gspread.exceptions.WorksheetNotFound:
+            df_schema  = self.get_dataframe_schema(T)
+            self.sheet.add_worksheet(title=_worksheet_name, rows="600", cols=df_schema.shape[1])
+            _ws = self.sheet.worksheet(_worksheet_name)
+            _ws.update([df_schema.columns.values.tolist()] + df_schema.values.tolist())
+        return Repository[T](_ws,T.__dict__['__model'])
     
     def upsert(self,name: str, dataframe: pd.DataFrame):
         df = dataframe.copy()
