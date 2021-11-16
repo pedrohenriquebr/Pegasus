@@ -1,79 +1,37 @@
 from sheetsorm.decorators import entity, column
+from datetime import datetime
 
 @entity()
 class TBL_Category:
-    @column(primary_key=True)
-    def ID_Category(self) -> int:
-       pass
-    
-    @column()
-    def ID_CategoryParent(self) -> int:
-       pass
-
-    @column(length=250)
-    def DS_Name(self) -> str:
-        pass
-    
-
-    @column()
-    def NR_Level(self) -> int:
-        pass
-
+    ID_Category = column(int,primary_key=True)
+    ID_CategoryParent = column(int)
+    DS_Name = column(str(250))
+    NR_Level = column(int)
 
 @entity()
 class TBL_Transactions:
-    @column(primary_key=True)
-    def ID_Transaction(self) -> int:
-        pass
+     ID_Transaction = column(int,primary_key=True)
+     ID_Account = column(int)
+     ID_AccountDestination = column(int)
+     CD_Type = column(str(12))
+     ID_Category = column(int)
+     DT_TransactionDate =  column(datetime)
+     DT_RegistrationDate = column(datetime)
+     NR_Amount = column(float)
+     IC_Imported = column(bool)
+     DS_Description = column(str(250))
+     DS_AttachmentDetails = column(str(250))        
+     DS_AttachmentPath = column(str(250))
+     DT_ImportedDate= column(datetime)
+     NR_Balance = column(float)
 
-    @column()
-    def ID_Account(self) -> int:
-        pass
-
-    @column()
-    def ID_AccountDestination(self) -> int:
-        pass
-
-    @column(length=12)
-    def CD_Type(self) -> str:
-        pass
-
-    @column()
-    def ID_Category(self) -> int:
-        pass
-
-    @column(dtype='datetime')
-    def DT_TransactionDate(self):
-        pass
-
-    @column(dtype='datetime')
-    def DT_RegistrationDate(self):
-        pass
-
-    @column()
-    def NR_Amount(self) -> float:
-        pass
-
-    @column()
-    def IC_Imported(self) -> bool:
-        pass
-
-    @column(length=250)
-    def DS_Description(self) -> str:
-        pass
-
-    @column(length=200)
-    def DS_AttachmentDetails(self) -> str:
-        pass
-
-    @column(length=200)
-    def DS_AttachmentPath(self) -> str:
-        pass
-
-    @column(dtype='datetime')
-    def DT_ImportedDate(self):
-        pass
-
-    @column()
-    def NR_Balance(self) -> float:
-        pass
+@entity()
+class TBL_Account:
+    ID_Account = column(int,primary_key=True)
+    ID_AccountGroup = column(int)
+    DT_CreatedDate = column(datetime)
+    NR_InitialAmount = column(float)
+    DS_Name = column(str(250))
+    NR_Number = column(str(250))
+    DS_BankOfficeNumber = column(str(250))
+    DS_Bank = column(str(250))

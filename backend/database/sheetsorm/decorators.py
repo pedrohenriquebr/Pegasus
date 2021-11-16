@@ -59,6 +59,8 @@ def entity(worksheet:str=None):
             
         for m in original_dict:
             column : Column = original_dict[m].__column__
+            column['attribute'] = m
+            column['name']  = column['attribute'] if column['name'] == '' else column['name']
             default_value = None
             storage_name = '_'+m.lower()
             if column['dtype'] == 'int':
@@ -91,27 +93,27 @@ def entity(worksheet:str=None):
         return wrapper
     return inner_model
 
-def column(name:str='',dtype:str='', length:int=200,primary_key:bool=False,auto_increment=True):
-    def inner_column(func: Callable):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
+def get_type_name(x):
+    return x.__name__ if type(x) != str else type(x).__name__
 
-        
-        wrapper.__column__  = {
-            # the name to be used to access the column
-            'attribute': func.__name__,
-            # the name of the column in the worksheet
-            'name': func.__name__ if name == '' else name,
-            # the data type of the column
-            'dtype': dtype if dtype != '' else func.__annotations__['return'].__name__,
-            # the length of the column
-            'length': length,
-            # if the column is a primary key
-            'primary_key': primary_key,
-            # if the column is auto increment
-            'auto_increment': auto_increment
-        }
-        return wrapper
-    return inner_column
+def column(dtype,name:str='',primary_key:bool=False,auto_increment=True):
+    def wrapper(*args, **kwargs):
+        return ''
+
+    type_name  = get_type_name(dtype)
+    wrapper.__column__  = {
+        # the name to be used to access the column
+        'attribute': '',
+        # the name of the column in the worksheet
+        'name': '',
+        # the data type of the column
+        'dtype': type_name,
+        # the length of the column
+        'length': int(dtype) if type_name == 'str' else 0,
+        # if the column is a primary key
+        'primary_key': primary_key,
+        # if the column is auto increment
+        'auto_increment': auto_increment
+    }
+    return wrapper
 
