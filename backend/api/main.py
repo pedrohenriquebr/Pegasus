@@ -2,7 +2,7 @@ from flask import Flask, flash, request, redirect, url_for,send_from_directory,j
 from dotenv import load_dotenv
 import database.dbconnection as dbconnection
 import  database.schema as schema
-from pegasus2 import Pegasus
+from services.pegasus2 import Pegasus
 import os
 import sys
 

@@ -1,14 +1,15 @@
 import os
-from typing import Any
+from typing import TypeVar
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
-from database.schema  import schema
-
+from .schema  import schema
+from .sheetsorm.repository import Repository
 
 SPREADSHEET_NAME  = os.getenv('SPREADSHEET_NAME','Pegasus - DEV')
 USER_EMAIL = os.getenv('USER_EMAIL')
 
+T  = TypeVar('T')
 
 class DbConnection:
     def __init__(self):
@@ -29,6 +30,9 @@ class DbConnection:
             exit(0)
         return self.sheet
     
+    def get_repository(self,T ) -> Repository[T]:
+        return Repository[T](self.sheet.worksheet(T.__dict__['__model']['__worksheet_name']),T.__dict__['__model'])
+    
     def map_table(self,table : str):
         tbl = self.sheet.worksheet(table)
         tbl = schema[table].append(pd.DataFrame(tbl.get_all_records()))
@@ -48,5 +52,3 @@ class DbConnection:
         self.sheet.worksheet(name).update([df.columns.values.tolist()] + df.fillna('null').values.tolist())
 
 
-
-        
