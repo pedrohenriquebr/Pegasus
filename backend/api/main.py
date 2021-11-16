@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from api import config
 
 import api.routes as routes
-import db_connection
+import api.db_connection
 
 
 def create_app() -> Flask:

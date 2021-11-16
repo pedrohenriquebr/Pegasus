@@ -2,8 +2,8 @@ from flask import flash, request, redirect, url_for,send_from_directory,jsonify,
 from werkzeug.utils import secure_filename
 import os
 from api import config
-from services import TransactionsService 
-from db_connection import db
+from api.services import TransactionsService 
+from api.db_connection import db
 
 
 transactions_service = TransactionsService(db)
