@@ -1,7 +1,7 @@
-from database.dbconnection import entity, column
+from sheetsorm.decorators import entity, column
 
 @entity()
-class TBL_Category: 
+class TBL_Category:
     @column(primary_key=True)
     def ID_Category(self) -> int:
        pass
