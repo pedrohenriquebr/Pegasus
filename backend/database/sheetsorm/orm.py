@@ -47,6 +47,7 @@ class SheetsORM:
                 raise ValueError("Spreadsheet not found")
             else:
                 self.sheet = self.client.create(self.spreadsheet_name)
+                # self.sheet.share(user_email, perm_type, role)
         return self.sheet
     
     def share(self, user_email: str, perm_type: str = 'user', role: str = 'writer'):

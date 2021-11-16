@@ -1,4 +1,4 @@
-from typing import Callable, Generic, List, TypeVar
+from typing import Callable, Generic, List, TypeVar, Any
 from collections import namedtuple
 import datetime
 import gspread
@@ -25,7 +25,7 @@ class Repository(Generic[T]):
         self.pending = []
         self.primary_key_attr  = [x['attribute'] for x in self.model['__data'] if x['primary_key'] == True][0]
         self.primary_key_name  = [x['name'] for x in self.model['__data'] if x['primary_key'] == True][0]
-        self.is_autoincrement  = [x['auto_increment'] for x in self.model['__data'] if x['primary_key'] == True][0]
+        self.is_autoincrement  = [x['increment'] for x in self.model['__data'] if x['primary_key'] == True][0]
         self.name_to_attribute = {x['name']: x['attribute'] for x in self.model['__data']}
         self.attribute_to_name = {x['attribute']: x['name'] for x in self.model['__data']}
         
@@ -33,13 +33,15 @@ class Repository(Generic[T]):
         
 
         if value == '' or value == 'null' or value == None:
+            if attr['required']:
+                raise ValueError(f'{attr["name"]} cannot be null')
             return nullable_values[attr['dtype']]
 
         if attr['dtype'] == 'int':
-            return 0 if value =='null' else int(value)
+            return int(value)
         elif attr['dtype'] == 'str':
             # get the lenthg of the varchar
-            length = attr['length'] if attr['length'] != None else 200
+            length = attr['length']
             value = str(value)
             if len(value) > int(length):
                 Exception('Value is too long')
@@ -120,6 +122,9 @@ class Repository(Generic[T]):
     
     def count(self, call: Callable):
         return len([x for x in self.get_all() if call(x)])
+    
+    def get_byid(self, id: Any) -> T:
+        return self.find(lambda x: getattr(x, self.primary_key_attr) == id)[0]
     
     def _update_cells(self, df: pd.DataFrame):
         # add the row
