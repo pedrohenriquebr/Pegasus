@@ -1,1 +1,1 @@
-web: gunicorn wsgi:api
+web: cd backend; gunicorn wsgi:api
