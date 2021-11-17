@@ -24,11 +24,12 @@ class TransactionsService:
                 'data': data,
             }
 
-    def get_all_transactions(self,id_account):
+    def get_all_transactions(self,id_account, page=0, limit=10):
         data = [self._format_transaction(row) for row in self.repo.find(lambda x: x.ID_Account == id_account)]
+        print(f'{id_account}, {page}, {limit}')
         return {
             'count': len(data),
-            'data': data
+            'data': data[page*limit:page*limit+limit]
         }
 
     def _format_transaction(self, transaction: TBL_Transactions):

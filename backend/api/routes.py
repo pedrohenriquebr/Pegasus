@@ -60,6 +60,10 @@ def search_transactions():
 @auth.login_required
 def get_all_transactions():
     d = request.get_json(force=True)
+    page  = d.get('page',0)
+    limit = d.get('limit',10)
+    id_account = d.get('id_account',1)
+    print(transactions_service.repo.find(lambda x: x.ID_Account == 1)[0].DS_Description)
     
-    return jsonify(transactions_service.get_all_transactions(d['id_account']))
+    return jsonify(transactions_service.get_all_transactions(id_account, page, limit))
     
