@@ -2,13 +2,16 @@ from flask import Blueprint, flash, request, redirect, url_for,send_from_directo
 from werkzeug.utils import secure_filename
 import os
 from api import config
-from api.services import TransactionsService 
+from api.services import TransactionsService,AccountsService,CategoriesService
 from api.db_connection import Connection 
 from flask_cors import CORS, cross_origin
 from api.auth import auth
+from api.uof import Uof 
 
-transactions_service = TransactionsService(Connection.get_connection())
-
+_uof  = Uof(Connection.get_connection())
+transactions_service = TransactionsService(_uof)
+accounts_service  = AccountsService(_uof)
+categories_service  = CategoriesService(_uof)
 
 def download_file(name):
     return send_from_directory(os.path.abspath(config.UPLOAD_FOLDER), name)
@@ -49,20 +52,44 @@ def upload_file():
 
 transactions_page = Blueprint('transactions', __name__)
 
-@transactions_page.route('/search')
-@cross_origin()
-@auth.login_required
-def search_transactions():
-    return jsonify(transactions_service.search_transactions(request.args.get('offset',0,int), request.args.get('limit',10,int)))
-
 @transactions_page.route('/get-all',methods=['POST'])
 @cross_origin()
 @auth.login_required
-def get_all_transactions():
+def get_all_transactions_by_account():
     d = request.get_json(force=True)
     page  = int(d.get('page',0))
     limit = int(d.get('limit',10))
     id_account = int(d.get('id_account',1))
     
     return jsonify(transactions_service.get_all_transactions(id_account, page, limit))
+
+
+
+## ACCOUNTS
+
+accounts_page = Blueprint('accounts', __name__)
+
+@accounts_page.route('/get-all',)
+@cross_origin()
+@auth.login_required
+def search_all_accounts():
+    d = request.get_json(force=True)
+    page  = int(d.get('page',0))
+    limit = int(d.get('limit',100))
     
+    return jsonify(accounts_service.get_all_accounts(page, limit))
+
+
+@accounts_page.route('/autocomplete')
+@cross_origin()
+@auth.login_required
+def autcomplete_accounts():
+    return jsonify(accounts_service.get_all_accounts_names())
+
+categories_page  = Blueprint('categories', __name__)
+
+@categories_page.route('/autocomplete',)
+@cross_origin()
+@auth.login_required
+def autcomplete_categories():
+    return jsonify(categories_service.get_all_categories_names())
