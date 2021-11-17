@@ -1,0 +1,1 @@
+web: cd backend && waitress-serve --listen=*:5000 wsgi:app

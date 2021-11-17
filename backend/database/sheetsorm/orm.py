@@ -2,6 +2,7 @@ from typing import TypeVar
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 import pandas as pd
+import requests 
 
 from .util import DTYPES
 
@@ -11,7 +12,7 @@ T  = TypeVar('T')
 
 
 class SheetsORM:
-    def __init__(self, credentials_file: str = None, spreadsheet_name: str = None, scope: list = None):
+    def __init__(self, credentials_file: str = None, spreadsheet_name: str = None, scope: list = None,is_url:bool = False):
         """
         SheetsORM constructor
 
@@ -36,7 +37,7 @@ class SheetsORM:
             raise ValueError("Spreadsheet name is not defined")
         self.spreadsheet_name = spreadsheet_name
         self.scope = scope
-        self.creds = ServiceAccountCredentials.from_json_keyfile_name(credentials_file, self.scope)
+        self.creds = ServiceAccountCredentials.from_json_keyfile_name(credentials_file, self.scope) if not is_url else ServiceAccountCredentials.from_json_keyfile_dict(requests.get(credentials_file).json(), self.scope)
         self.client = gspread.authorize(self.creds)
     
     def connect(self,create_if_not_exist: bool = True):

@@ -51,19 +51,18 @@ transactions_page = Blueprint('transactions', __name__)
 
 @transactions_page.route('/search')
 @cross_origin()
-@auth.login_required
+# @auth.login_required
 def search_transactions():
     return jsonify(transactions_service.search_transactions(request.args.get('offset',0,int), request.args.get('limit',10,int)))
 
 @transactions_page.route('/get-all',methods=['POST'])
 @cross_origin()
-@auth.login_required
+# @auth.login_required
 def get_all_transactions():
     d = request.get_json(force=True)
-    page  = d.get('page',0)
-    limit = d.get('limit',10)
-    id_account = d.get('id_account',1)
-    print(transactions_service.repo.find(lambda x: x.ID_Account == 1)[0].DS_Description)
+    page  = int(d.get('page',0))
+    limit = int(d.get('limit',10))
+    id_account = int(d.get('id_account',1))
     
     return jsonify(transactions_service.get_all_transactions(id_account, page, limit))
     
