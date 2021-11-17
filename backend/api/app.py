@@ -1,14 +1,12 @@
 from os import environ
 from flask import Flask
 from flask_cors import CORS
-from dotenv import load_dotenv
 from api import config
 import api.routes as routes
 from werkzeug.security import generate_password_hash
 
 
 def create_app():
-    load_dotenv()
     app = Flask(__name__)
     app.config['UPLOAD_FOLDER'] = config.UPLOAD_FOLDER
     app.config['USER'] = environ.get('USER')
