@@ -35,6 +35,7 @@ class TransactionsService:
         return {
             'id': transaction.ID_Transaction,
             'transaction_date': transaction.DT_TransactionDate.strftime(DEFAULT_DATE_FORMAT) if transaction.DT_TransactionDate else '',
+            'registration_date': transaction.DT_RegistrationDate.strftime(DEFAULT_DATE_FORMAT) if transaction.DT_RegistrationDate else '',
             'type': transaction.CD_Type,
             'amount': transaction.NR_Amount,
             'description': transaction.DS_Description,
