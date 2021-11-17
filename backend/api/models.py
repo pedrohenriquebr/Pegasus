@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-from typing import List, TypedDict
+from typing import List, NamedTuple, TypedDict
 
 
 class FilterDict(TypedDict):
@@ -26,12 +26,13 @@ class SortDict(TypedDict):
     name: str
     value: Order
 
-class TransactionsSearchCommand(TypedDict):
+class TransactionsSearchCommand():
     """
     A named dictionary for searching transactions.
     """
     offset: int 
-    limit: int 
+    limit: int
+    id_account: int 
     sort: List[SortDict] 
     filters: List[FilterDict]
     

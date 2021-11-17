@@ -1,12 +1,12 @@
-from flask import flash, request, redirect, url_for,send_from_directory,jsonify,request
+from flask import Blueprint, flash, request, redirect, url_for,send_from_directory,jsonify,request
 from werkzeug.utils import secure_filename
 import os
 from api import config
 from api.services import TransactionsService 
-from api.db_connection import db
+from api.db_connection import Connection 
 
 
-transactions_service = TransactionsService(db)
+transactions_service = TransactionsService(Connection.get_connection())
 
 
 def download_file(name):
@@ -44,6 +44,17 @@ def upload_file():
     </form>
     '''
 
+## TRANSACTIONS
+
+transactions_page = Blueprint('transactions', __name__)
+
+@transactions_page.route('/search')
 def search_transactions():
     return jsonify(transactions_service.search_transactions(request.args.get('offset',0,int), request.args.get('limit',10,int)))
+
+@transactions_page.route('/get-all',methods=['POST'])
+def get_all_transactions():
+    d = request.get_json(force=True)
+    
+    return jsonify(transactions_service.get_all_transactions(d['id_account']))
     
