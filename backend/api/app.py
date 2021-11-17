@@ -13,6 +13,8 @@ def create_app():
     app.config['PASSWORD'] = generate_password_hash(environ.get('PASSWORD'))
     cors = CORS(app)
     app.register_blueprint(routes.transactions_page,url_prefix='/api/transactions')
+    app.register_blueprint(routes.accounts_page,url_prefix='/api/accounts')
+    app.register_blueprint(routes.categories_page,url_prefix='/api/categories')
     print(app.url_map)
     return app
 

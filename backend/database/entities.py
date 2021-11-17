@@ -35,11 +35,13 @@ class TBL_Account:
     NR_Number = column(str(250))
     DS_BankOfficeNumber = column(str(250))
     DS_Bank = column(str(250))
+    
 
 @entity()
 class TBL_AccountGroup:
     ID_AccountGroup  = column(int,primary_key=True, increment=True,required=True)
     DS_Name  = column(str(250),required=True)
+    
 
 
 @entity()

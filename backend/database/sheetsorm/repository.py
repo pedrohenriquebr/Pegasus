@@ -13,8 +13,8 @@ nullable_values = {
     'int': 0,
     'float': 0.0,
     'bool': False,
-    'date': None,
-    'datetime': None,
+    'date': '',
+    'datetime': '',
     'time': None,
 
 }
