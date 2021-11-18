@@ -31,47 +31,15 @@ MESES = {
     12:'DEZEMBRO'
 }
 
-def find_keys(dict_):
-    key_list = []
-    def recursive(obj, last_parent=None,level=1):
-        for key in obj.keys():
-            if type(obj[key]) == dict:
-                key_list.append({'cat':key, 'level':level , 'cat_parent': last_parent, 'value': None})
-                recursive(obj[key], last_parent=key,level=level+1)
-            else:
-                a = len(obj[key])
-                if a >0:
-                    for value in obj[key]:
-                        key_list.append({'cat': key,'cat_parent': last_parent, 'level': level, 'value': value })
 
-                else:
-                    key_list.append({'cat': key,'cat_parent': last_parent, 'level': level, 'value': None})
-        
-    recursive(dict_)
-    return sorted(key_list, key=lambda x: x['level'])
 
 
 class Pegasus:
     def __init__(self,db: DbConnection,debug=False):
         self.debug = debug
         self.db = db
-        self.sheets = {
-            'base':None,
-            'dim_entrada': None,
-            'dim_saida':None,
-            'dim_historico':None,
-            'dim_saldo':None,
-            'fat_extrato':None,
-            'dim_lancamento':None,
-            'dim_historico_categoria':None,
-            'dim_categoria':None,
-            'report':None,
-            'historico': None
-        }
-        self.TBL_Category = db.worksheet('TBL_Category')
-        self.TBL_DescriptionCategory = db.worksheet('TBL_DescriptionCategory')
-        self.DIM_NR_Income = schema['DIM_NR_Income']
-        self.TBL_Transactions = db.worksheet('TBL_Transactions')
+        
+        
     
     def import_statement(self, statement_path: str, bank_name: str, id_account: int) -> None:
         if bank_name == 'inter':

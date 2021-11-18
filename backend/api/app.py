@@ -15,6 +15,7 @@ def create_app():
     app.register_blueprint(routes.transactions_page,url_prefix='/api/transactions')
     app.register_blueprint(routes.accounts_page,url_prefix='/api/accounts')
     app.register_blueprint(routes.categories_page,url_prefix='/api/categories')
+    app.register_blueprint(routes.exportation_page,url_prefix='/api/export')
     print(app.url_map)
     return app
 

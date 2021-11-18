@@ -1,4 +1,4 @@
-from database.entities import TBL_Transactions,TBL_Account,TBL_AccountGroup,TBL_Category
+from database.entities import *
 from database.sheetsorm.orm import SheetsORM 
 
 
@@ -9,6 +9,8 @@ class Uof:
         self._AccountRepository = None
         self._CategoryRepository = None
         self._AccountGroupRepository = None
+        self._DescriptionCategory = None
+        self._DwBase = None
     
     @property
     def TransactionsRepository(self):
@@ -32,5 +34,17 @@ class Uof:
     def CategoryRepository(self):
         if self._CategoryRepository is None:
             self._CategoryRepository = self.db.get_repository(TBL_Category)
-        return self._CategoryRepository    
+        return self._CategoryRepository
+    
+    @property
+    def DwBaseRepository(self):
+        if self._DwBase is None:
+            self._DwBase = self.db.get_repository(DW_Base)
+        return self._DwBase
+    
+    @property
+    def DescriptionCategoryRepository(self):
+        if self._DescriptionCategory is None:
+            self._DescriptionCategory = self.db.get_repository(TBL_DescriptionCategory)
+        return self._DescriptionCategory
     

@@ -2,7 +2,7 @@ from flask import Blueprint, flash, request, redirect, url_for,send_from_directo
 from werkzeug.utils import secure_filename
 import os
 from api import config
-from api.services import TransactionsService,AccountsService,CategoriesService
+from api.services import TransactionsService,AccountsService,CategoriesService,ExportationService
 from api.db_connection import Connection 
 from flask_cors import CORS, cross_origin
 from api.auth import auth
@@ -12,6 +12,7 @@ _uof  = Uof(Connection.get_connection())
 transactions_service = TransactionsService(_uof)
 accounts_service  = AccountsService(_uof)
 categories_service  = CategoriesService(_uof)
+exportation_service = ExportationService(_uof)
 
 def download_file(name):
     return send_from_directory(os.path.abspath(config.UPLOAD_FOLDER), name)
@@ -93,3 +94,16 @@ categories_page  = Blueprint('categories', __name__)
 @auth.login_required
 def autcomplete_categories():
     return jsonify(categories_service.get_all_categories_names())
+
+
+
+
+## EXPORTATION
+
+exportation_page = Blueprint('exportation', __name__)
+
+@exportation_page.route('/download', methods=['GET'])
+@cross_origin()
+@auth.login_required
+def download_exportation():
+    return download_file(exportation_service.export_data())

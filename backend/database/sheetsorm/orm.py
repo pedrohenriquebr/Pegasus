@@ -10,6 +10,10 @@ from .repository import Repository
 
 T  = TypeVar('T')
 
+def get_dataframe_schema(self, T):
+        return  pd.DataFrame({
+            column['name']: pd.Series(dtype=DTYPES[column['dtype']]) for column  in T.__dict__['__model']['__data']})
+
 
 class SheetsORM:
     def __init__(self, credentials_file: str = None, spreadsheet_name: str = None, scope: list = None,is_url:bool = False):
@@ -59,16 +63,12 @@ class SheetsORM:
         self.sheet.add_worksheet(title=T.__dict__['__model']['__worksheet_name'], rows="600", cols=schema.shape[1])
         self.upsert(T.__dict__['__model']['__worksheet_name'],schema)
         
-    def get_dataframe_schema(self, T):
-        return  pd.DataFrame({
-            column['name']: pd.Series(dtype=DTYPES[column['dtype']]) for column  in T.__dict__['__model']['__data']})
-
     def get_repository(self,T ) -> Repository[T]:
         _worksheet_name = T.__dict__['__model']['__worksheet_name']
         try:
             _ws = self.sheet.worksheet(_worksheet_name)
         except gspread.exceptions.WorksheetNotFound:
-            df_schema  = self.get_dataframe_schema(T)
+            df_schema  = get_dataframe_schema(T)
             self.sheet.add_worksheet(title=_worksheet_name, rows="600", cols=df_schema.shape[1])
             _ws = self.sheet.worksheet(_worksheet_name)
             _ws.update([df_schema.columns.values.tolist()] + df_schema.values.tolist())

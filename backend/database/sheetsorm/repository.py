@@ -23,9 +23,11 @@ class Repository(Generic[T]):
         self.worksheet  = worksheet
         self.model = model
         self.pending = []
-        self.primary_key_attr  = [x['attribute'] for x in self.model['__data'] if x['primary_key'] == True][0]
-        self.primary_key_name  = [x['name'] for x in self.model['__data'] if x['primary_key'] == True][0]
-        self.is_autoincrement  = [x['increment'] for x in self.model['__data'] if x['primary_key'] == True][0]
+        self.primary_key = [x for x in self.model['__data'] if x['primary_key'] == True]
+        print(self.worksheet.title)
+        self.primary_key_attr  = self.primary_key[0]['attribute'] if len(self.primary_key) >0 else None
+        self.primary_key_name  = self.primary_key[0]['name'] if len(self.primary_key) >0 else None
+        self.is_autoincrement  = self.primary_key[0]['increment'] if len(self.primary_key) >0 else None
         self.name_to_attribute = {x['name']: x['attribute'] for x in self.model['__data']}
         self.attribute_to_name = {x['attribute']: x['name'] for x in self.model['__data']}
         
@@ -136,6 +138,9 @@ class Repository(Generic[T]):
         self._df_copy = self._df_copy.fillna('null')
         self.worksheet.update([self._df_copy.columns.values.tolist()] + self._df_copy.values.tolist())
     
+    def clear(self,):
+        self.worksheet.clear()
+    
     def commit(self):
         # load the dataframe
         df = self.to_dataframe()
@@ -151,7 +156,7 @@ class Repository(Generic[T]):
                 # get the name of the columns
                 # las id
                 self.worksheet.add_rows(1)
-                last_id = df[self.primary_key_name].max()
+                last_id = 0 if pd.isna(df[self.primary_key_name].max()) else df[self.primary_key_name].max()
                 new_dict = self._object_to_dict(obj)
                 if self.is_autoincrement:
                     new_dict[self.primary_key_name] = last_id + 1
