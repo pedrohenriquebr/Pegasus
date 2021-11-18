@@ -124,34 +124,28 @@ class CategoriesService:
 class ExportationService:
     def  __init__(self, uof: Uof):
         self.uof = uof
-        self.sheets = {
-            'base':None,
-            'dim_entrada': None,
-            'dim_saida':None,
-            'dim_historico':None,
-            'dim_saldo':None,
-            'fat_extrato':None,
-            'dim_lancamento':None,
-            'dim_historico_categoria':None,
-            'dim_categoria':None,
-            'report':None,
-            'historico': None
-        }
+        self.sheets = {}
         self.excel_name_file = 'output.xlsx' 
         self.excel_file = os.path.abspath(UPLOAD_FOLDER + '/' + self.excel_name_file)
         
     def export_data(self):
+        self.accounts = [(x.ID_Account, x.DS_Name) for x in self.uof.AccountRepository.get_all()]
+       
         self.load_data()
-        self._transform()
-        self.export_csv()
+        for account in self.accounts:
+            if len(self.base[self.base['ID_Account'] == account[0]]) == 0:
+                continue
+            self.sheets[account[1]] = self._transform(account[0])
+
+        # self.export_csv()
         self.export_xlsx()
         return self.excel_name_file
 
-    def apply_extra_styles(self,excel_file: str) -> None:
+    def apply_extra_styles(self,excel_file: str, report) -> None:
         # load workbook template.xlsx from current directory
         wb = load_workbook(excel_file)
 
-        ws = wb['report']
+        ws = wb[report]
 
         # esconde a primeira coluna
         ws.column_dimensions['A'].hidden = True
@@ -211,18 +205,10 @@ class ExportationService:
 
         ws.row_dimensions.group(last_start,last_end, hidden=True)
 
-        # congelar a coluna B
         ws.freeze_panes = ws['C2']
 
-        # cor das abas das worksheets
-        wb['historico'].sheet_properties.tabColor = '203764'
-        wb['report'].sheet_properties.tabColor = '203764'
-        ws =  wb['historico']
-        for row in ws['A1:B1']:
-            row[0].fill = PatternFill("solid", fgColor=Color(rgb='00305496'))
-            row[0].font = Font(color="ffffffff", bold=True, size=14)
-            row[1].fill = PatternFill("solid", fgColor=Color(rgb='00305496'))
-            row[1].font = Font(color="ffffffff", bold=True, size=14)
+        wb[report].sheet_properties.tabColor = '203764'
+
 
         wb.save(self.excel_file)
         wb.close()
@@ -230,17 +216,11 @@ class ExportationService:
     def export_xlsx(self, ) -> None:
         with pd.ExcelWriter(self.excel_file, mode='w') as writer:
             for name, df in self.sheets.items():
-                if name == 'report':
-                    self.get_report_styles(df).to_excel(writer,sheet_name=name)
-                else:
-                    df.to_excel(writer,sheet_name=name,index=False)
-
+                self.get_report_styles(df).to_excel(writer,sheet_name=name)
             
-            for name, df in self.sheets.items():
-                if name not in  ['report','historico']:
-                    writer.sheets[name].sheet_state = 'hidden'
             print(f'Exporting to {self.excel_file} sheets')
-        self.apply_extra_styles(self.excel_file)
+        for name, df in self.sheets.items():
+            self.apply_extra_styles(self.excel_file, name)
    
     def get_report_styles(self,pivot_table):
         # the  Styler object dont apply styles on columns or indexes
@@ -298,26 +278,29 @@ class ExportationService:
         self.DIM_NR_Income = schema['DIM_NR_Income']
         self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
         transactions = self.uof.TransactionsRepository.get_all()
-        self.base_df = pd.DataFrame({
+        self.base = pd.DataFrame({
             'ID_Base': pd.Series(dtype='int',data=list(range(1,len(transactions)))),
             'ID_Account': pd.Series(dtype='int', data=[t.ID_Account for t in transactions]),
+            'ID_AccountDestination': pd.Series(dtype='int', data=[t.ID_AccountDestination for t in transactions]),
+            'CD_Type': pd.Series(dtype='str', data=[t.CD_Type for t in transactions]),
             'DT_TransactionDate': pd.Series(dtype='datetime64[ns]',data=[t.DT_TransactionDate for t in transactions]),
             'DS_Description': pd.Series(dtype='str', data=[t.DS_Description for t in transactions]),
-            'NR_Value': pd.Series(dtype='float', data=[-t.NR_Amount if t.CD_Type in ['Expense','Transfer'] else t.NR_Amount for t in transactions]),
+            'NR_Value': pd.Series(dtype='float', data=[t.NR_Amount for t in transactions]),
             'NR_Balance': pd.Series(dtype='float', data=[t.NR_Balance for t in transactions]),
         })
         
-        self.base_df['DT_TransactionDate'] = pd.to_datetime(self.base_df['DT_TransactionDate'])
-        self.base_df  = self.base_df.sort_values('DT_TransactionDate')
-        self.base_df = self.base_df[self.base_df['ID_Account'] == 1]
+        self.base['DT_TransactionDate'] = pd.to_datetime(self.base['DT_TransactionDate'])
+        self.base  = self.base.sort_values('DT_TransactionDate')
+        # self.base_df = self.base_df[sel]
         self.categorias  = self._load_categories()
         self.historico_df = self._load_historic()
     
-    def _transform(self):
+    def _transform(self, id_account):
         # Dimensions
+        self.base_df = self.base[(self.base['ID_Account'] == id_account) | (self.base['ID_AccountDestination'] == id_account )]
 
         # dim_entrada
-        self.DIM_NR_Income = self.base_df['NR_Value'].loc[self.base_df['NR_Value'] > 0]
+        self.DIM_NR_Income = self.base_df[(self.base_df['CD_Type'] == 'Income') | ((self.base_df['CD_Type'] == 'Transfer') & (self.base_df['ID_AccountDestination'] == id_account))]['NR_Value']
         self.DIM_NR_Income.drop_duplicates(inplace=True)
         self.DIM_NR_Income.reset_index(drop=True,inplace=True)
         self.DIM_NR_Income = self.DIM_NR_Income.to_frame()
@@ -325,7 +308,7 @@ class ExportationService:
         self.DIM_NR_Income['ID_Income'] = self.DIM_NR_Income['ID_Income'].astype(np.int64)
 
         # dim_saida
-        self.DIM_NR_Expense = self.base_df['NR_Value'].loc[self.base_df['NR_Value'] < 0]
+        self.DIM_NR_Expense = self.base_df[(self.base_df['CD_Type'] == 'Expense') | ((self.base_df['CD_Type'] == 'Transfer') & (self.base_df['ID_Account'] == id_account))]['NR_Value']
         self.DIM_NR_Expense.drop_duplicates(inplace=True)
         self.DIM_NR_Expense.reset_index(drop=True,inplace=True)
         self.DIM_NR_Expense = self.DIM_NR_Expense.to_frame()
@@ -405,22 +388,11 @@ class ExportationService:
         self.cat_pais = self.dim_categoria[self.dim_categoria['NR_Level'] == 1]['DS_Category'].unique()
         self.cats = self.dim_categoria[self.dim_categoria['NR_Level'] > 1]['DS_Category'].unique()
 
-        self.report = self._build_pivot_table(self.merged)
+        report = self._build_pivot_table(self.merged)
         self.historico = self.build_historico(self.dim_historico_categoria, self.DIM_DS_Description, self.dim_categoria)
+        return report
         
-        self.sheets = {
-            'base':self.base_df,
-            'dim_entrada': self.DIM_NR_Income,
-            'dim_saida':self.DIM_NR_Expense,
-            'dim_historico':self.DIM_DS_Description,
-            'dim_saldo':self.DIM_NR_Balance,
-            'fat_extrato':self.merged,
-            'dim_lancamento':self.DIM_DT_TransactionDate,
-            'dim_historico_categoria':self.dim_historico_categoria,
-            'dim_categoria':self.dim_categoria,
-            'report': self.report,
-            'historico': self.historico
-        }
+        
        
     def _build_pivot_table(self, fat_table: pd.DataFrame):
         report  = self.build_weekly_report(fat_table)
