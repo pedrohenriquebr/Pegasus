@@ -7,12 +7,14 @@ from api.db_connection import Connection
 from flask_cors import CORS, cross_origin
 from api.auth import auth
 from api.uof import Uof 
+from api.caching import cache
 
 _uof  = Uof(Connection.get_connection())
 transactions_service = TransactionsService(_uof)
 accounts_service  = AccountsService(_uof)
 categories_service  = CategoriesService(_uof)
 exportation_service = ExportationService(_uof)
+# importation_service = ImportationService(_uof)
 
 def download_file(name):
     return send_from_directory(os.path.abspath(config.UPLOAD_FOLDER), name)
@@ -21,39 +23,13 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in config.ALLOWED_EXTENSIONS
 
-def upload_file():
-    if request.method == 'POST':
-        # check if the post request has the file part
-        if 'file' not in request.files:
-            flash('No file part')
-            return redirect(request.url)
-        file = request.files['file']
-        # If the user does not select a file, the browser submits an
-        # empty file without a filename.
-        if file.filename == '':
-            flash('No selected file')
-            return redirect(request.url)
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            # file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            # pegasus.import_statement(os.path.join(app.config['UPLOAD_FOLDER'], filename),'inter',request.form.get('id_account',type=int))
-            # return 200 request
-            return jsonify({"status": "success"})
-    return '''
-    <!doctype html>
-    <title>Upload new File</title>
-    <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
-    '''
 
 ## TRANSACTIONS
 
 transactions_page = Blueprint('transactions', __name__)
 
 @transactions_page.route('/get-all',methods=['POST'])
+@cache.cached(timeout=3)
 @cross_origin()
 @auth.login_required
 def get_all_transactions_by_account():
@@ -71,6 +47,7 @@ def get_all_transactions_by_account():
 accounts_page = Blueprint('accounts', __name__)
 
 @accounts_page.route('/get-all',)
+@cache.cached(timeout=3)
 @cross_origin()
 @auth.login_required
 def search_all_accounts():
@@ -82,6 +59,7 @@ def search_all_accounts():
 
 
 @accounts_page.route('/autocomplete')
+@cache.cached(timeout=3)
 @cross_origin()
 @auth.login_required
 def autcomplete_accounts():
@@ -90,6 +68,7 @@ def autcomplete_accounts():
 categories_page  = Blueprint('categories', __name__)
 
 @categories_page.route('/autocomplete',)
+@cache.cached(timeout=3)
 @cross_origin()
 @auth.login_required
 def autcomplete_categories():
@@ -107,3 +86,28 @@ exportation_page = Blueprint('exportation', __name__)
 @auth.login_required
 def download_exportation():
     return download_file(exportation_service.export_data())
+
+
+@exportation_page.route('/upload', methods=['POST'])
+@cross_origin()
+@auth.login_required
+def upload_file():
+
+    # check if the post request has the file part
+    if 'file' not in request.files:
+        flash('No file part')
+        return redirect(request.url)
+    file = request.files['file']
+    # If the user does not select a file, the browser submits an
+    # empty file without a filename.
+    if file.filename == '':
+        flash('No selected file')
+        return redirect(request.url)
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(config.UPLOAD_FOLDER, filename))
+        exportation_service.import_statement(os.path.join(config.UPLOAD_FOLDER, filename),request.form.get('bank',type=str),request.form.get('id_account',type=int))
+        return jsonify({"status": "success"})
+    else:
+        ## send error status
+        return jsonify({"status": "error"})

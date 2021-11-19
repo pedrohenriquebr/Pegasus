@@ -7,6 +7,7 @@ from database.entities import TBL_Transactions,TBL_Account,TBL_AccountGroup,TBL_
 from helpers.date import DEFAULT_DATE_FORMAT
 from database.schema import schema
 from api.config import *
+import adapters.bank_statement.inter
 
 from openpyxl.worksheet.table import Table
 from openpyxl.utils import get_column_letter
@@ -129,13 +130,11 @@ class ExportationService:
         self.excel_file = os.path.abspath(UPLOAD_FOLDER + '/' + self.excel_name_file)
         
     def export_data(self):
-        self.accounts = [(x.ID_Account, x.DS_Name) for x in self.uof.AccountRepository.get_all()]
+        self.accounts =  self.uof.AccountRepository.get_all()
        
         self.load_data()
         for account in self.accounts:
-            if len(self.base[self.base['ID_Account'] == account[0]]) == 0:
-                continue
-            self.sheets[account[1]] = self._transform(account[0])
+            self.sheets[account.DS_Name] = self._transform(account.ID_Account,account.NR_InitialAmount)
 
         # self.export_csv()
         self.export_xlsx()
@@ -295,7 +294,7 @@ class ExportationService:
         self.categorias  = self._load_categories()
         self.historico_df = self._load_historic()
     
-    def _transform(self, id_account):
+    def _transform(self, id_account, initial_amount):
         # Dimensions
         self.base_df = self.base[(self.base['ID_Account'] == id_account) | (self.base['ID_AccountDestination'] == id_account )]
 
@@ -388,15 +387,14 @@ class ExportationService:
         self.cat_pais = self.dim_categoria[self.dim_categoria['NR_Level'] == 1]['DS_Category'].unique()
         self.cats = self.dim_categoria[self.dim_categoria['NR_Level'] > 1]['DS_Category'].unique()
 
-        report = self._build_pivot_table(self.merged)
+        report = self._build_pivot_table(self.merged, initial_amount)
         self.historico = self.build_historico(self.dim_historico_categoria, self.DIM_DS_Description, self.dim_categoria)
         return report
         
         
        
-    def _build_pivot_table(self, fat_table: pd.DataFrame):
+    def _build_pivot_table(self, fat_table: pd.DataFrame, initial_amount: float) -> pd.DataFrame:
         report  = self.build_weekly_report(fat_table)
-        init_balance = report['NR_Balance'][0] + report['SAIDA'][0] - report['ENTRADA'][0]
         report = report[['DT_TransactionDate','ANO','MÊS','SEMANA','ENTRADA','SAIDA','CATEGORIA']]\
             .groupby(['DT_TransactionDate','ANO','MÊS','SEMANA','CATEGORIA'])\
             .sum([['ENTRADA','SAIDA']]).reset_index().drop(columns=['DT_TransactionDate'])
@@ -428,8 +426,8 @@ class ExportationService:
         balance_values = []
 
         for idx in range(2,pivot_table.shape[1]):
-            init_balance = self.calc_balance(init_balance, report,pivot_table,idx)
-            balance_values.append(init_balance)
+            initial_amount = self.calc_balance(initial_amount, report,pivot_table,idx)
+            balance_values.append(initial_amount)
 
         pivot_table.loc[-1] = ['' , 'SALDO', *balance_values]  
         pivot_table.index = pivot_table.index + 1  
@@ -511,3 +509,32 @@ class ExportationService:
     def _load_historic(self,) -> pd.DataFrame:
         return self.TBL_DescriptionCategory.merge(self.TBL_Category)\
                         .rename(columns={'DS_Name': 'DS_Category'})[['DS_Description','DS_Category']]
+    
+    def import_statement(self, statement_path: str, bank_name: str, id_account: int) -> None:
+        self.TBL_Category = self.uof.CategoryRepository.to_dataframe()
+        self.TBL_DescriptionCategory = self.uof.DescriptionCategoryRepository.to_dataframe()
+        self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
+
+        if bank_name == 'inter':
+            self.tmp = adapters.bank_statement.inter.load_statement(statement_path)
+        else:
+            raise Exception('Bank not implemented')
+        errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
+        
+        last_id  = self.TBL_Transactions.ID_Transaction.max()
+        if np.isnan(last_id):
+            last_id = 0
+        last_id = last_id + 1
+        self.tmp['ID_Transaction'] = pd.Series(list(range(last_id, last_id + len(self.tmp))))
+        self.tmp['ID_Account'] = pd.Series(id_account, index=self.tmp.index)
+        self.tmp['CD_Type'] = self.tmp['NR_Value'].apply(lambda x: 'Income' if x > 0 else 'Expense')
+        self.tmp['NR_Amount'] = self.tmp['NR_Value'].apply(lambda x: abs(x))
+        self.tmp['IC_Imported'] = True
+        self.tmp['DT_ImportedDate'] = pd.to_datetime('now')
+        self.tmp['DT_ImportedDate'] = self.tmp['DT_ImportedDate'].astype('datetime64[ns]')
+        self.tmp['DT_RegistrationDate'] = pd.to_datetime('now')
+        self.tmp['DT_RegistrationDate'] =self.tmp['DT_RegistrationDate'].astype('datetime64[ns]')
+        self.TBL_Transactions = pd.concat([self.TBL_Transactions, self.tmp.drop(['NR_Value'], axis=1)], sort=False)
+        ## validações
+        # self.base_df = self.base_df.drop_duplicates()
+        self.uof.TransactionsRepository._update_cells(self.TBL_Transactions)
