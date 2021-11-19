@@ -116,22 +116,27 @@ the finance report will be in the same template.xlsx file on `report` tab
 
 _For more examples, please refer to the [Documentation](https://example.com)_
 
-
-# Usage
+# Running locally
 
 ## local environment
 
 ```bash
 $ pip install -r requirements.dev.txt
-$ waitress-serve --listen=*:8000 wsgi:app 
+$ cd backend && waitress-serve --listen=*:8000 wsgi:app 
 ```
 
 ## Unix-like environment
 
 ```bash
-$ pip install -r requirements.txt
-$ gunicorn wsgi:app
+$ cd backend && gunicorn wsgi:app
 ```
+
+## Heroku
+
+```bash
+$ heroku local
+```
+
 
 <!-- ROADMAP -->
 ## Roadmap
