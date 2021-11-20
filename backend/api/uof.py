@@ -37,12 +37,6 @@ class Uof:
         return self._CategoryRepository
     
     @property
-    def DwBaseRepository(self):
-        if self._DwBase is None:
-            self._DwBase = self.db.get_repository(DW_Base)
-        return self._DwBase
-    
-    @property
     def DescriptionCategoryRepository(self):
         if self._DescriptionCategory is None:
             self._DescriptionCategory = self.db.get_repository(TBL_DescriptionCategory)

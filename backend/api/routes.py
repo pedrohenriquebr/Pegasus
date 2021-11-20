@@ -106,8 +106,14 @@ def upload_file():
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file.save(os.path.join(config.UPLOAD_FOLDER, filename))
-        exportation_service.import_statement(os.path.join(config.UPLOAD_FOLDER, filename),request.form.get('bank',type=str),request.form.get('id_account',type=int))
+        try:
+            rs  = exportation_service.import_statement(os.path.join(config.UPLOAD_FOLDER, filename),request.form.get('bank',type=str),request.form.get('id_account',type=int))
+            if rs is not None:
+                return jsonify({'status':'warning','message':'There are some records without category', 'data':rs})
+        except Exception as e:
+            return jsonify({"status":"error", "error": str(e)})
+        
         return jsonify({"status": "success"})
     else:
         ## send error status
-        return jsonify({"status": "error"})
+        return jsonify({"status": "error", "error": "File not allowed"})

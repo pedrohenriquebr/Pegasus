@@ -3,7 +3,7 @@ from typing import List
 from pandas.core.tools.datetimes import to_datetime
 from api.uof import Uof
 from sheetsorm.orm import SheetsORM
-from database.entities import TBL_Transactions,TBL_Account,TBL_AccountGroup,TBL_Category,DW_Base
+from database.entities import TBL_Transactions,TBL_Account,TBL_AccountGroup,TBL_Category
 from helpers.date import DEFAULT_DATE_FORMAT
 from database.schema import schema
 from api.config import *
@@ -511,7 +511,7 @@ class ExportationService:
         return self.TBL_DescriptionCategory.merge(self.TBL_Category)\
                         .rename(columns={'DS_Name': 'DS_Category'})[['DS_Description','DS_Category']]
     
-    def import_statement(self, statement_path: str, bank_name: str, id_account: int) -> None:
+    def import_statement(self, statement_path: str, bank_name: str, id_account: int):
         self.TBL_Category = self.uof.CategoryRepository.to_dataframe()
         self.TBL_DescriptionCategory = self.uof.DescriptionCategoryRepository.to_dataframe()
         self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
@@ -520,7 +520,7 @@ class ExportationService:
             self.tmp = adapters.bank_statement.inter.load_statement(statement_path)
         else:
             raise Exception('Bank not implemented')
-        errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
+            
         
         last_id  = self.TBL_Transactions.ID_Transaction.max()
         if np.isnan(last_id):
@@ -535,7 +535,19 @@ class ExportationService:
         self.tmp['DT_ImportedDate'] = self.tmp['DT_ImportedDate'].astype('datetime64[ns]')
         self.tmp['DT_RegistrationDate'] = pd.to_datetime('now')
         self.tmp['DT_RegistrationDate'] =self.tmp['DT_RegistrationDate'].astype('datetime64[ns]')
-        self.TBL_Transactions = pd.concat([self.TBL_Transactions, self.tmp.drop(['NR_Value'], axis=1)], sort=False)
+        errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
+        # I get the ID_Category from the TBL_DescriptionCategory
+        self.tmp = pd.merge(self.tmp, self.TBL_DescriptionCategory, how='left', on='DS_Description')
+        
+        self.TBL_Transactions = pd.concat([self.TBL_Transactions, 
+                                            self.tmp], sort=False)
         ## validações
         # self.base_df = self.base_df.drop_duplicates()
         self.uof.TransactionsRepository._update_cells(self.TBL_Transactions)
+
+
+
+        if errors.shape[0] > 0:
+            return errors.to_dict('records')
+        else:
+            return None
