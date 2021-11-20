@@ -1,6 +1,6 @@
 from typing import List
 
-from pandas.core.tools.datetimes import to_datetime
+from datetime import datetime
 from api.uof import Uof
 from sheetsorm.orm import SheetsORM
 from database.entities import TBL_Transactions,TBL_Account,TBL_AccountGroup,TBL_Category
@@ -488,21 +488,23 @@ class ExportationService:
         composite_key = ['ID_Account','DS_Description','DT_TransactionDate','NR_Balance','NR_Amount','CD_Type']
         self.tmp['CD_Type'] = self.tmp['NR_Value'].apply(lambda x: 'Income' if x > 0 else 'Expense')
         self.tmp['NR_Amount'] = self.tmp['NR_Value'].apply(lambda x: abs(x))
-        self.tmp['ID_Account'] = pd.Series(command['id_account'], index=self.tmp.index)
-        duplicates  = self.tmp[self.tmp[composite_key].isin(self.TBL_Transactions[composite_key])]
-        duplicates = duplicates.dropna()
-        self.tmp = self.tmp[~self.tmp[composite_key].isin(duplicates[composite_key])]
-        self.tmp = self.tmp[~self.tmp[composite_key].isna()]
+        self.tmp['ID_Account'] = pd.Series(command['id_account'], index=self.tmp.index)        
+        search_duplicates = pd.concat([self.tmp[composite_key],self.TBL_Transactions[composite_key]]).reset_index()
+        duplicates = search_duplicates[search_duplicates.duplicated(subset=composite_key,keep=False)]\
+                                                                 .drop_duplicates(subset=composite_key)[composite_key]
+        d = pd.merge(self.tmp,duplicates,on=composite_key,how='outer', indicator='Exist')
+        self.tmp = d[d['Exist'] == 'left_only']
+        self.tmp.drop(columns=['Exist'], inplace=True)
         if self.tmp.shape[0] > 0:
             last_id  = self.TBL_Transactions.ID_Transaction.max()
             if np.isnan(last_id):
                 last_id = 0
-            last_id = last_id + 1
-            self.tmp['ID_Transaction'] = pd.Series(list(range(last_id, last_id + len(self.tmp))))
+            last_id = int(last_id) + 1
+            self.tmp['ID_Transaction'] = pd.Series(list(range(last_id, last_id + self.tmp.shape[0])), index=self.tmp.index)
             self.tmp['IC_Imported'] = True
-            self.tmp['DT_ImportedDate'] = pd.to_datetime('now')
+            self.tmp['DT_ImportedDate'] = pd.to_datetime(datetime.now())
             self.tmp['DT_ImportedDate'] = self.tmp['DT_ImportedDate'].astype('datetime64[ns]')
-            self.tmp['DT_RegistrationDate'] = pd.to_datetime('now')
+            self.tmp['DT_RegistrationDate'] = pd.to_datetime(datetime.now())
             self.tmp['DT_RegistrationDate'] =self.tmp['DT_RegistrationDate'].astype('datetime64[ns]')
             errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
             # I get the ID_Category from the TBL_DescriptionCategory
