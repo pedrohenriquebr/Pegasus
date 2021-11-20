@@ -1,5 +1,5 @@
 from database.entities import *
-from database.sheetsorm.orm import SheetsORM 
+from sheetsorm.orm import SheetsORM 
 
 
 class Uof:

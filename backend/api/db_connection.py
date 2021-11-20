@@ -1,5 +1,5 @@
 import os
-from database.sheetsorm.orm import SheetsORM
+from sheetsorm.orm import SheetsORM
 
 SPREADSHEET_NAME  = os.getenv('SPREADSHEET_NAME',None)
 USER_EMAIL = os.getenv('USER_EMAIL', None)

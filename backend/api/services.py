@@ -2,7 +2,7 @@ from typing import List
 
 from pandas.core.tools.datetimes import to_datetime
 from api.uof import Uof
-from database.sheetsorm.orm import SheetsORM
+from sheetsorm.orm import SheetsORM
 from database.entities import TBL_Transactions,TBL_Account,TBL_AccountGroup,TBL_Category,DW_Base
 from helpers.date import DEFAULT_DATE_FORMAT
 from database.schema import schema
@@ -129,7 +129,7 @@ class ExportationService:
         self.excel_name_file = 'output.xlsx' 
         self.excel_file = os.path.abspath(UPLOAD_FOLDER + '/' + self.excel_name_file)
         
-    def export_data(self):
+    def export_data(self, ):
         self.accounts =  self.uof.AccountRepository.get_all()
        
         self.load_data()
@@ -280,6 +280,7 @@ class ExportationService:
         self.base = pd.DataFrame({
             'ID_Base': pd.Series(dtype='int',data=list(range(1,len(transactions)))),
             'ID_Account': pd.Series(dtype='int', data=[t.ID_Account for t in transactions]),
+            'ID_Category': pd.Series(dtype='int', data=[t.ID_Category for t in transactions]),
             'ID_AccountDestination': pd.Series(dtype='int', data=[t.ID_AccountDestination for t in transactions]),
             'CD_Type': pd.Series(dtype='str', data=[t.CD_Type for t in transactions]),
             'DT_TransactionDate': pd.Series(dtype='datetime64[ns]',data=[t.DT_TransactionDate for t in transactions]),
