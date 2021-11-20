@@ -8,6 +8,7 @@ from flask_cors import CORS, cross_origin
 from api.auth import auth
 from api.uof import Uof 
 from api.caching import cache
+from api.models import ImportationCommand
 
 _uof  = Uof(Connection.get_connection())
 transactions_service = TransactionsService(_uof)
@@ -108,9 +109,20 @@ def upload_file():
         filename = secure_filename(file.filename)
         file.save(os.path.join(config.UPLOAD_FOLDER, filename))
         try:
-            rs  = exportation_service.import_statement(os.path.join(config.UPLOAD_FOLDER, filename),request.form.get('bank',type=str),request.form.get('id_account',type=int))
+            command: ImportationCommand = {
+                'statement_path': os.path.join(config.UPLOAD_FOLDER, filename),
+                'bank_name':request.form.get('bank',type=str,default=''),
+                'id_account':request.form.get('id_account',type=int, default=0),
+                'skip_rows': request.form.get('skip_rows',type=int, default=5),
+            }
+            rs  = exportation_service.import_statement(command)
             if rs is not None:
-                return jsonify({'status':'warning','message':'There are some records without category', 'data':rs})
+                message = ''
+                if len(rs['errors']) >0:
+                    message += 'There are some records without category\n'
+                if len(rs['duplicates']) > 0:
+                    message += 'There are some duplicated records\n'
+                return jsonify({'status':'warning','message':message, 'data':rs})
         except Exception as e:
             return jsonify({"status":"error", "error": str(e)})
         

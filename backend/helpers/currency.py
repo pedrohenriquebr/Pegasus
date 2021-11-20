@@ -1,7 +1,7 @@
 def convert_brl(val: str) -> float:
         value=0
         neg = bool('-' in val)
-        _val= list(val.strip().replace('- ',''))
+        _val= list(val.strip().replace('- ','').replace('-',''))
         comma = ',' in _val and _val.index(',') 
         point = '.' in _val and _val.index('.')
 

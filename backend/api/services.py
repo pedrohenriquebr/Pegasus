@@ -16,7 +16,9 @@ from openpyxl.styles import Font, PatternFill
 from openpyxl.styles.colors import Color
 
 import pandas as pd
-import numpy as np 
+import numpy as np
+
+from api.models import ImportationCommand
 
 class TransactionsService:
 
@@ -468,43 +470,54 @@ class ExportationService:
         return self.TBL_DescriptionCategory.merge(self.TBL_Category)\
                         .rename(columns={'DS_Name': 'DS_Category'})[['DS_Description','DS_Category']]
     
-    def import_statement(self, statement_path: str, bank_name: str, id_account: int):
+    def import_statement(self, command:ImportationCommand):
         self.TBL_Category = self.uof.CategoryRepository.to_dataframe()
         self.TBL_DescriptionCategory = self.uof.DescriptionCategoryRepository.to_dataframe()
         self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
+        errors = pd.DataFrame()
+        duplicates = pd.DataFrame()
 
-        if bank_name == 'inter':
-            self.tmp = adapters.bank_statement.inter.load_statement(statement_path)
+        if command['bank_name'] == 'inter':
+            self.tmp = adapters.bank_statement.inter.load_statement(command['statement_path'],\
+                                                                    skip_rows=command['skip_rows'])
         else:
             raise Exception('Bank not implemented')
-            
         
-        last_id  = self.TBL_Transactions.ID_Transaction.max()
-        if np.isnan(last_id):
-            last_id = 0
-        last_id = last_id + 1
-        self.tmp['ID_Transaction'] = pd.Series(list(range(last_id, last_id + len(self.tmp))))
-        self.tmp['ID_Account'] = pd.Series(id_account, index=self.tmp.index)
+        ## TODO:
+        ## Check if the statement is already imported: composite key: (ID_Account, DS_Description,DT_TransactionDate,NR_Balance,NR_Value,CD_Type)
+        composite_key = ['ID_Account','DS_Description','DT_TransactionDate','NR_Balance','NR_Amount','CD_Type']
         self.tmp['CD_Type'] = self.tmp['NR_Value'].apply(lambda x: 'Income' if x > 0 else 'Expense')
         self.tmp['NR_Amount'] = self.tmp['NR_Value'].apply(lambda x: abs(x))
-        self.tmp['IC_Imported'] = True
-        self.tmp['DT_ImportedDate'] = pd.to_datetime('now')
-        self.tmp['DT_ImportedDate'] = self.tmp['DT_ImportedDate'].astype('datetime64[ns]')
-        self.tmp['DT_RegistrationDate'] = pd.to_datetime('now')
-        self.tmp['DT_RegistrationDate'] =self.tmp['DT_RegistrationDate'].astype('datetime64[ns]')
-        errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
-        # I get the ID_Category from the TBL_DescriptionCategory
-        self.tmp = pd.merge(self.tmp, self.TBL_DescriptionCategory, how='left', on='DS_Description')
+        self.tmp['ID_Account'] = pd.Series(command['id_account'], index=self.tmp.index)
+        duplicates  = self.tmp[self.tmp[composite_key].isin(self.TBL_Transactions[composite_key])]
+        duplicates = duplicates.dropna()
+        self.tmp = self.tmp[~self.tmp[composite_key].isin(duplicates[composite_key])]
+        self.tmp = self.tmp[~self.tmp[composite_key].isna()]
+        if self.tmp.shape[0] > 0:
+            last_id  = self.TBL_Transactions.ID_Transaction.max()
+            if np.isnan(last_id):
+                last_id = 0
+            last_id = last_id + 1
+            self.tmp['ID_Transaction'] = pd.Series(list(range(last_id, last_id + len(self.tmp))))
+            self.tmp['IC_Imported'] = True
+            self.tmp['DT_ImportedDate'] = pd.to_datetime('now')
+            self.tmp['DT_ImportedDate'] = self.tmp['DT_ImportedDate'].astype('datetime64[ns]')
+            self.tmp['DT_RegistrationDate'] = pd.to_datetime('now')
+            self.tmp['DT_RegistrationDate'] =self.tmp['DT_RegistrationDate'].astype('datetime64[ns]')
+            errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
+            # I get the ID_Category from the TBL_DescriptionCategory
+            self.tmp = pd.merge(self.tmp, self.TBL_DescriptionCategory, how='left', on='DS_Description')
+            
+            self.TBL_Transactions = pd.concat([self.TBL_Transactions, 
+                                                self.tmp.drop(columns=['NR_Value'])], sort=False)
+            ## validações
+            # self.base_df = self.base_df.drop_duplicates()
+            self.uof.TransactionsRepository._update_cells(self.TBL_Transactions)
         
-        self.TBL_Transactions = pd.concat([self.TBL_Transactions, 
-                                            self.tmp], sort=False)
-        ## validações
-        # self.base_df = self.base_df.drop_duplicates()
-        self.uof.TransactionsRepository._update_cells(self.TBL_Transactions)
 
 
 
-        if errors.shape[0] > 0:
-            return errors.to_dict('records')
+        if errors.shape[0] > 0 or duplicates.shape[0] > 0:
+            return {'errors': errors.to_dict('records'), 'duplicates': duplicates.to_dict('records')}
         else:
             return None
