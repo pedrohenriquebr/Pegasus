@@ -87,7 +87,9 @@ exportation_page = Blueprint('exportation', __name__)
 @auth.login_required
 def download_exportation():
     id_account = int(request.args.get('id_account',0))
-    return download_file(exportation_service.export_data(id_account))
+    year = int(request.args.get('year',0))
+    month =int(request.args.get('month',0))
+    return download_file(exportation_service.export_data(id_account, year, month))
 
 
 @exportation_page.route('/upload', methods=['POST'])

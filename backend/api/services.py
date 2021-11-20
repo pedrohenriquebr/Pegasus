@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, List
 
 from datetime import datetime
 from api.uof import Uof
@@ -131,13 +131,30 @@ class ExportationService:
         self.excel_name_file = 'output.xlsx' 
         self.excel_file = os.path.abspath(UPLOAD_FOLDER + '/' + self.excel_name_file)
         
-    def export_data(self, id_account=0):
+    def export_data(self, id_account:int=0, year:int=0, month=0):
+        self.TBL_Category = self.uof.CategoryRepository.to_dataframe()
+        self.TBL_DescriptionCategory = self.uof.DescriptionCategoryRepository.to_dataframe()
+        self.DIM_NR_Income = schema['DIM_NR_Income']
+        self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
         self.accounts =  self.uof.AccountRepository.get_all() \
                                             if id_account == 0 \
                                             else self.uof.AccountRepository.find(lambda x: x.ID_Account == id_account)
-       
-        self.load_data()
+        if year == 0:
+            year = datetime.now().year
+        
+        self.base = self.load_data(self.TBL_Transactions)
+        self.categorias  = self._load_categories()
+        self.historico_df = self._load_historic()
+
+        self.base  = self.base[self.base['DT_TransactionDate'].dt.year == year]
+
+        if month != 'all':
+            self.base  = self.base[self.base['DT_TransactionDate'].dt.month == month]
+        
+
+        
         for account in self.accounts:
+            print(f'Generating sheet for account "{account.DS_Name}"')
             self.sheets[account.DS_Name] = self._transform(account.ID_Account,account.NR_InitialAmount)
 
         # self.export_csv()
@@ -275,30 +292,23 @@ class ExportationService:
         recursive(dict_)
         return sorted(key_list, key=lambda x: x['level'])
 
-    def load_data(self) -> None:
-        self.TBL_Category = self.uof.CategoryRepository.to_dataframe()
-        self.TBL_DescriptionCategory = self.uof.DescriptionCategoryRepository.to_dataframe()
-        self.DIM_NR_Income = schema['DIM_NR_Income']
-        self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
-        transactions = self.uof.TransactionsRepository.get_all()
-        self.base = pd.DataFrame({
-            'ID_Base': pd.Series(dtype='int',data=list(range(1,len(transactions)))),
-            'ID_Account': pd.Series(dtype='int', data=[t.ID_Account for t in transactions]),
-            'ID_Category': pd.Series(dtype='int', data=[t.ID_Category for t in transactions]),
-            'ID_AccountDestination': pd.Series(dtype='int', data=[t.ID_AccountDestination for t in transactions]),
-            'CD_Type': pd.Series(dtype='str', data=[t.CD_Type for t in transactions]),
-            'DT_TransactionDate': pd.Series(dtype='datetime64[ns]',data=[t.DT_TransactionDate for t in transactions]),
-            'DS_Description': pd.Series(dtype='str', data=[t.DS_Description for t in transactions]),
-            'NR_Value': pd.Series(dtype='float', data=[t.NR_Amount for t in transactions]),
-            'NR_Balance': pd.Series(dtype='float', data=[t.NR_Balance for t in transactions]),
+    def load_data(self,transactions: pd.DataFrame) -> pd.DataFrame:
+        base = pd.DataFrame({
+            'ID_Base': pd.Series(dtype='int',data=list(range(1,transactions.shape[0]))),
+            'ID_Account': transactions['ID_Account'],
+            'ID_Category': transactions['ID_Category'],
+            'ID_AccountDestination': transactions['ID_AccountDestination'],
+            'CD_Type': transactions['CD_Type'],
+            'DT_TransactionDate': transactions['DT_TransactionDate'],
+            'DS_Description': transactions['DS_Description'],
+            'NR_Value': transactions['NR_Amount'],
+            'NR_Balance': transactions['NR_Balance'],
         })
         
-        self.base['DT_TransactionDate'] = pd.to_datetime(self.base['DT_TransactionDate'])
-        self.base  = self.base.sort_values('DT_TransactionDate')
-        # self.base_df = self.base_df[sel]
-        self.categorias  = self._load_categories()
-        self.historico_df = self._load_historic()
-    
+        base['DT_TransactionDate'] = pd.to_datetime(base['DT_TransactionDate'])
+        return base.sort_values('DT_TransactionDate')
+
+        
     def _transform(self, id_account, initial_amount):
         # Dimensions
         self.base_df = self.base[(self.base['ID_Account'] == id_account) | (self.base['ID_AccountDestination'] == id_account )]
