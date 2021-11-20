@@ -45,7 +45,7 @@ class TransactionsService:
             'type': transaction.CD_Type,
             'amount': transaction.NR_Amount,
             'description': transaction.DS_Description,
-            'category':  category[0].DS_Name if len(category) > 0 else '',
+            'category':  category[0].DS_Name if len(category) > 0 else 'Desconhecido',
             'account_destination': account_destination[0].DS_Name if len(account_destination) > 0 else '',
             'account': account[0].DS_Name if len(account) > 0 else '',
             'id_category': transaction.ID_Category,
@@ -129,8 +129,10 @@ class ExportationService:
         self.excel_name_file = 'output.xlsx' 
         self.excel_file = os.path.abspath(UPLOAD_FOLDER + '/' + self.excel_name_file)
         
-    def export_data(self, ):
-        self.accounts =  self.uof.AccountRepository.get_all()
+    def export_data(self, id_account=0):
+        self.accounts =  self.uof.AccountRepository.get_all() \
+                                            if id_account == 0 \
+                                            else self.uof.AccountRepository.find(lambda x: x.ID_Account == id_account)
        
         self.load_data()
         for account in self.accounts:
@@ -350,46 +352,10 @@ class ExportationService:
         self.merged.drop(columns=['DS_Description', 'NR_Value', 'DT_TransactionDate','NR_Balance'], inplace=True,errors='ignore')
         self.DIM_NR_Expense['NR_Value'] = self.DIM_NR_Expense['NR_Value'].abs()
 
-
-        rows = self._find_keys(self.categorias)
-
-        self.dim_categoria = pd.DataFrame({
-            'ID_Category': pd.Series(np.arange(start=1,stop=len(rows)+1), dtype=np.int64),
-            'DS_Category': pd.Series([row['cat'] for row in rows], dtype=str),
-            # temp
-            'DS_CategoryParent': pd.Series([row['cat_parent'] for row in rows], dtype=str),
-            # temp
-            'DS_Description': pd.Series([row['value']  for row in rows], dtype=str),
-            'ID_CategoryParent': pd.Series([], dtype=np.int64),
-            'NR_Level': pd.Series([row['level'] for row in rows], dtype=np.int64)
-        })
-
-        tmp = self.dim_categoria.merge(self.dim_categoria,how='left',left_on='DS_CategoryParent', right_on='DS_Category')
-        self.dim_categoria[['ID_Category','DS_Category','ID_CategoryParent','NR_Level']] = tmp[['ID_Category_x','DS_Category_x','ID_Category_y','NR_Level_x']]
-        self.dim_categoria = self.dim_categoria.drop(columns=['DS_CategoryParent','DS_Description'])
-        self.dim_categoria.drop_duplicates(inplace=True)
-        self.dim_categoria['ID_Category'] = self.dim_categoria['ID_Category'].astype(np.int64)
-        self.dim_categoria['ID_CategoryParent'] = self.dim_categoria['ID_CategoryParent'].fillna(0)
-        self.dim_categoria['ID_CategoryParent'] = self.dim_categoria['ID_CategoryParent'].astype(np.int64)
-
-        self.dim_historico_categoria = pd.DataFrame([],columns=['ID_DS_Description','ID_Category'])
-        
-        self.dim_historico_categoria = self.DIM_DS_Description\
-                                        .merge(self.historico_df, how='left', on='DS_Description')\
-                                        .merge(self.dim_categoria, how='left', left_on='DS_Category',right_on='DS_Category')\
-                                        .drop_duplicates(['DS_Description','DS_Category'])[['ID_DS_Description','ID_Category']]
-    
-        self.dim_historico_categoria = self.dim_historico_categoria[['ID_DS_Description','ID_Category']]
-        self.dim_historico_categoria['ID_Category'] = self.dim_historico_categoria['ID_Category'].fillna(0)
-        self.dim_historico_categoria['ID_Category'] = self.dim_historico_categoria['ID_Category'].astype(np.int64)
-        self.dim_historico_categoria['ID_DS_Description'] = self.dim_historico_categoria['ID_DS_Description'].fillna(0)
-        self.dim_historico_categoria['ID_DS_Description'] = self.dim_historico_categoria['ID_DS_Description'].astype(np.int64)
-
-        self.cat_pais = self.dim_categoria[self.dim_categoria['NR_Level'] == 1]['DS_Category'].unique()
-        self.cats = self.dim_categoria[self.dim_categoria['NR_Level'] > 1]['DS_Category'].unique()
+        self.cat_pais = self.TBL_Category[self.TBL_Category['NR_Level'] == 1]['DS_Name'].unique()
+        self.cats = self.TBL_Category[self.TBL_Category['NR_Level'] > 1]['DS_Name'].unique()
 
         report = self._build_pivot_table(self.merged, initial_amount)
-        self.historico = self.build_historico(self.dim_historico_categoria, self.DIM_DS_Description, self.dim_categoria)
         return report
         
         
@@ -400,9 +366,9 @@ class ExportationService:
             .groupby(['DT_TransactionDate','ANO','MÊS','SEMANA','CATEGORIA'])\
             .sum([['ENTRADA','SAIDA']]).reset_index().drop(columns=['DT_TransactionDate'])
         filtro = report
-        filtro = pd.merge(filtro, self.dim_categoria, how='left',  left_on='CATEGORIA', right_on='DS_Category')
-        filtro = pd.merge(filtro, self.dim_categoria, how='left',  left_on='ID_CategoryParent', right_on='ID_Category')
-        filtro['CATEGORIA_PAI'] = filtro['DS_Category_y']
+        filtro = pd.merge(filtro, self.TBL_Category, how='left',  left_on='CATEGORIA', right_on='DS_Name')
+        filtro = pd.merge(filtro, self.TBL_Category, how='left',  left_on='ID_CategoryParent', right_on='ID_Category')
+        filtro['CATEGORIA_PAI'] = filtro['DS_Name_y']
         filtro =  filtro[['ANO', 'MÊS','SEMANA', 'CATEGORIA', 'CATEGORIA_PAI','ENTRADA', 'SAIDA']]
         filtro['NR_Value'] = filtro['ENTRADA'] + filtro['SAIDA']
         filtro['CATEGORIA_PAI']  = filtro['CATEGORIA_PAI'].fillna('Desconhecido')
@@ -450,13 +416,6 @@ class ExportationService:
         pivot_table = pivot_table.drop(columns=['CATEGORIA_PAI'])
         return pivot_table 
     
-    def build_historico(self, dim_historico_categoria: pd.DataFrame, dim_historico: pd.DataFrame, dim_categoria: pd.DataFrame):
-        return dim_historico_categoria\
-                    .merge(dim_historico,how='left')\
-                    .merge(dim_categoria, how='left')\
-                    .rename(columns={'DS_Category': 'CATEGORIA'})[['DS_Description','CATEGORIA']]\
-                    .fillna('desconhecido')\
-                    .drop_duplicates(['DS_Description','CATEGORIA'])
     
     def calc_income(self, report, pivot_table: pd.DataFrame, idx: int):
         # MÊS , SEMANA 
@@ -474,23 +433,21 @@ class ExportationService:
         return init_balance + receitas - despesas
    
     def build_weekly_report(self,fat_table: pd.DataFrame):
-        report = fat_table.merge(self.DIM_DS_Description, how='left')\
-                .merge(self.dim_historico_categoria, how='left')\
-                .merge(self.dim_categoria, how='left')\
-                .merge(self.DIM_NR_Balance, how='left')\
-                .merge(self.DIM_NR_Income, how='left')\
-                    .rename(columns={'NR_Value':'ENTRADA'})\
-                .merge(self.DIM_NR_Expense, how='left')\
-                    .rename(columns={'NR_Value':'SAIDA'})\
-                .merge(self.DIM_DT_TransactionDate, how='left')\
-                .sort_values(by=['DT_TransactionDate'])
+        report = fat_table.merge(self.TBL_Category, how='left', on='ID_Category')
+        report = report.merge(self.DIM_NR_Balance, how='left')
+        report = report.merge(self.DIM_NR_Income, how='left')\
+                           .rename(columns={'NR_Value':'ENTRADA'})
+        report = report.merge(self.DIM_NR_Expense, how='left')\
+                            .rename(columns={'NR_Value':'SAIDA'})
+        report = report.merge(self.DIM_DT_TransactionDate, how='left')
+        report = report.sort_values(by=['DT_TransactionDate'])
 
         report[['ENTRADA','SAIDA']] = report[['ENTRADA','SAIDA']].fillna(0)
         report['MÊS'] = report['DT_TransactionDate'].apply(lambda d: MESES[d.month])
         report['MÊS'] = pd.Categorical(report['MÊS'], MESES.values())
         report['ANO'] = report['DT_TransactionDate'].dt.year
         report['SEMANA'] = self._calc_week(report['DT_TransactionDate'])
-        report['CATEGORIA'] = report['DS_Category'].fillna('desconhecido')
+        report['CATEGORIA'] = report['DS_Name'].fillna('desconhecido')
         return report
     
     def _calc_week(self, series: pd.Series) -> pd.Series:
