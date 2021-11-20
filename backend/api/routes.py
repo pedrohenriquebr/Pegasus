@@ -85,7 +85,8 @@ exportation_page = Blueprint('exportation', __name__)
 @cross_origin()
 @auth.login_required
 def download_exportation():
-    return download_file(exportation_service.export_data())
+    id_account = int(request.args.get('id_account',0))
+    return download_file(exportation_service.export_data(id_account))
 
 
 @exportation_page.route('/upload', methods=['POST'])
