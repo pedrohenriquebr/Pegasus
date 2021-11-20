@@ -1,4 +1,4 @@
-from .sheetsorm.decorators import entity, column
+from sheetsorm.decorators import entity, column
 from datetime import datetime
 
 @entity()
