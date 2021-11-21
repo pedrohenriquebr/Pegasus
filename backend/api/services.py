@@ -33,7 +33,7 @@ class TransactionsService:
         data = [self._format_transaction(row,accounts,categories) for row in self.repo.find(lambda x: x.ID_Account == id_account)]
         return {
             'count': len(data),
-            'data': data[page*limit:page*limit+limit]
+            'data': data[page*limit:page*limit+limit] if limit != -1 else data
         }
 
     def _format_transaction(self, transaction: TBL_Transactions, accounts: List[TBL_Account], categories: List[TBL_Category]):
@@ -148,14 +148,14 @@ class ExportationService:
 
         self.base  = self.base[self.base['DT_TransactionDate'].dt.year == year]
 
-        if month != 'all':
+        if month >  0:
             self.base  = self.base[self.base['DT_TransactionDate'].dt.month == month]
         
 
         
         for account in self.accounts:
             print(f'Generating sheet for account "{account.DS_Name}"')
-            self.sheets[account.DS_Name] = self._transform(account.ID_Account,account.NR_InitialAmount)
+            self.sheets[account.DS_Name] = self._transform(self.base,account.ID_Account,account.NR_InitialAmount)
 
         # self.export_csv()
         self.export_xlsx()
@@ -309,12 +309,14 @@ class ExportationService:
         return base.sort_values('DT_TransactionDate')
 
         
-    def _transform(self, id_account, initial_amount):
+    def _transform(self, base, id_account, initial_amount):
         # Dimensions
-        self.base_df = self.base[(self.base['ID_Account'] == id_account) | (self.base['ID_AccountDestination'] == id_account )]
+        self.base_df = base[(self.base['ID_Account'] == id_account) | (base['ID_AccountDestination'] == id_account )]
 
         # dim_entrada
-        self.DIM_NR_Income = self.base_df[(self.base_df['CD_Type'] == 'Income') | ((self.base_df['CD_Type'] == 'Transfer') & (self.base_df['ID_AccountDestination'] == id_account))]['NR_Value']
+        self.DIM_NR_Income = self.base_df[(self.base_df['CD_Type'] == 'Income') \
+                                            | ( (self.base_df['CD_Type'] == 'Transfer') \
+                                                & (self.base_df['ID_AccountDestination'] == id_account) )]['NR_Value']
         self.DIM_NR_Income.drop_duplicates(inplace=True)
         self.DIM_NR_Income.reset_index(drop=True,inplace=True)
         self.DIM_NR_Income = self.DIM_NR_Income.to_frame()
@@ -322,7 +324,9 @@ class ExportationService:
         self.DIM_NR_Income['ID_Income'] = self.DIM_NR_Income['ID_Income'].astype(np.int64)
 
         # dim_saida
-        self.DIM_NR_Expense = self.base_df[(self.base_df['CD_Type'] == 'Expense') | ((self.base_df['CD_Type'] == 'Transfer') & (self.base_df['ID_Account'] == id_account))]['NR_Value']
+        self.DIM_NR_Expense = self.base_df[(self.base_df['NR_Value'] == 'Expense') \
+                                             | ((self.base_df['CD_Type'] == 'Transfer') \
+                                                & (self.base_df['ID_Account'] == id_account))]['NR_Value']
         self.DIM_NR_Expense.drop_duplicates(inplace=True)
         self.DIM_NR_Expense.reset_index(drop=True,inplace=True)
         self.DIM_NR_Expense = self.DIM_NR_Expense.to_frame()
@@ -455,8 +459,9 @@ class ExportationService:
         report = report.sort_values(by=['DT_TransactionDate'])
 
         report[['ENTRADA','SAIDA']] = report[['ENTRADA','SAIDA']].fillna(0)
-        report['MÊS'] = report['DT_TransactionDate'].apply(lambda d: MESES[d.month])
-        report['MÊS'] = pd.Categorical(report['MÊS'], MESES.values())
+        translated_months = report['DT_TransactionDate'].apply(lambda d: MESES[d.month])
+        report['MÊS'] = translated_months
+        report['MÊS'] = pd.Categorical(report['MÊS'], translated_months.unique())
         report['ANO'] = report['DT_TransactionDate'].dt.year
         report['SEMANA'] = self._calc_week(report['DT_TransactionDate'])
         report['CATEGORIA'] = report['DS_Name'].fillna('desconhecido')
