@@ -1,0 +1,14 @@
+.table-container {
+  overflow: auto;
+  display: block;
+}
+
+.demo-sorting-asc {
+  background-color: #81c784 !important;
+  border-color: #81c784 !important;
+}
+
+.demo-sorting-desc {
+  background-color: #00BFFF !important;
+  border-color: #00BFFF !important;
+}
