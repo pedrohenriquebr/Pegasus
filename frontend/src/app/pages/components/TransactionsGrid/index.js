@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 
 import { useTranslation } from 'react-i18next';
 import api from '../../../services/api';
-import { DataGrid } from '@mui/x-data-grid';
 
 
 export default function TransactionsGrid(props) {
@@ -24,20 +23,20 @@ export default function TransactionsGrid(props) {
     // NR_Balance
 
     const columns = [
-        { field: 'id', headerName: 'ID_Transaction', type: 'number', width: 100 },
-        { field: 'account', headerName: 'ID_Account', type: 'number', width: 60 },
-        { field: 'id_account_destination', headerName: 'ID_AccountDestination', type: 'number', width: 60 },
-        { field: 'type', headerName: 'CD_Type', type: 'string', width: 100 },
-        { field: 'id_category', headerName: 'Category', type: 'string', width: 60 },
-        { field: 'transaction_date', headerName: 'DT_TransactionDate', type: 'string', width: 160 },
-        { field: 'registration_date', headerName: 'DT_RegistrationDate', type: 'string', width: 160 },
-        { field: 'nr_amount', headerName: 'Amount', type: 'number', width: 60 },
-        { field: 'ic_imported', headerName: 'IC_Imported', type: 'boolean', width: 60 },
-        { field: 'ds_description', headerName: 'DS_Description', type: 'string', width: 60 },
-        { field: 'ds_attachment_details', headerName: 'DS_AttachmentDetails', type: 'string', width: 60 },
-        { field: 'ds_attachment_path', headerName: 'AttachmentPath', type: 'string', width: 60 },
-        { field: 'imported_date', headerName: 'ImportedDate', type: 'string', width: 60 },
-        { field: 'nr_balance', headerName: 'NR_Balance', type: 'number', width: 60 },
+        { field: 'id', headerName: 'ID_Transaction',},
+        { field: 'account', headerName: 'ID_Account',},
+        { field: 'id_account_destination', headerName: 'ID_AccountDestination',},
+        { field: 'type', headerName: 'CD_Type',},
+        { field: 'id_category', headerName: 'Category'},
+        { field: 'transaction_date', headerName: 'DT_TransactionDate',},
+        { field: 'registration_date', headerName: 'DT_RegistrationDate',},
+        { field: 'nr_amount', headerName: 'Amount',},
+        { field: 'ic_imported', headerName: 'IC_Imported',},
+        { field: 'ds_description', headerName: 'DS_Description',},
+        { field: 'ds_attachment_details', headerName: 'DS_AttachmentDetails'},
+        { field: 'ds_attachment_path', headerName: 'AttachmentPath',},
+        { field: 'imported_date', headerName: 'ImportedDate'},
+        { field: 'nr_balance', headerName: 'NR_Balance',},
     ];
 
 
@@ -58,11 +57,11 @@ export default function TransactionsGrid(props) {
 
     return (
         <div style={{width: '100%', height:300}}>
-            <DataGrid 
+            {/* <DataGrid 
             rows={dataset} 
             columns={columns} 
             pageSize={10} 
-            loading={loading}/>
+            loading={loading}/> */}
     </div>
     );
 

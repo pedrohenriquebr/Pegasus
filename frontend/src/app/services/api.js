@@ -1,10 +1,16 @@
 import axios from 'axios';
 
 export default axios.create({
-    baseURL: 'http://localhost:5000/api/',
+   
+    baseURL: '/api',
     headers: {
+        'Accept': '*/*',
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
-    }
+        "Access-Control-Allow-Origin": "*"
+    },
+    auth: {
+        username: process.env.REACT_APP_USER,
+        password: process.env.REACT_APP_PASSWORD
+    },
 });
 
