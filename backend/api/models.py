@@ -35,4 +35,13 @@ class TransactionsSearchCommand():
     id_account: int 
     sort: List[SortDict] 
     filters: List[FilterDict]
-    
+
+
+class ImportationCommand(TypedDict):
+    """
+    TypedDict for importation
+    """
+    statement_path: str
+    bank_name: str
+    id_account: int
+    skip_rows: int

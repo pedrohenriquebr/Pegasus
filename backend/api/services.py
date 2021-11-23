@@ -1,9 +1,9 @@
-from typing import List
+from typing import Any, List
 
-from pandas.core.tools.datetimes import to_datetime
+from datetime import datetime
 from api.uof import Uof
 from sheetsorm.orm import SheetsORM
-from database.entities import TBL_Transactions,TBL_Account,TBL_AccountGroup,TBL_Category,DW_Base
+from database.entities import TBL_Transactions,TBL_Account,TBL_AccountGroup,TBL_Category
 from helpers.date import DEFAULT_DATE_FORMAT
 from database.schema import schema
 from api.config import *
@@ -16,7 +16,9 @@ from openpyxl.styles import Font, PatternFill
 from openpyxl.styles.colors import Color
 
 import pandas as pd
-import numpy as np 
+import numpy as np
+
+from api.models import ImportationCommand
 
 class TransactionsService:
 
@@ -31,7 +33,7 @@ class TransactionsService:
         data = [self._format_transaction(row,accounts,categories) for row in self.repo.find(lambda x: x.ID_Account == id_account)]
         return {
             'count': len(data),
-            'data': data[page*limit:page*limit+limit]
+            'data': data[page*limit:page*limit+limit] if limit != -1 else data
         }
 
     def _format_transaction(self, transaction: TBL_Transactions, accounts: List[TBL_Account], categories: List[TBL_Category]):
@@ -45,7 +47,7 @@ class TransactionsService:
             'type': transaction.CD_Type,
             'amount': transaction.NR_Amount,
             'description': transaction.DS_Description,
-            'category':  category[0].DS_Name if len(category) > 0 else '',
+            'category':  category[0].DS_Name if len(category) > 0 else 'Desconhecido',
             'account_destination': account_destination[0].DS_Name if len(account_destination) > 0 else '',
             'account': account[0].DS_Name if len(account) > 0 else '',
             'id_category': transaction.ID_Category,
@@ -129,12 +131,31 @@ class ExportationService:
         self.excel_name_file = 'output.xlsx' 
         self.excel_file = os.path.abspath(UPLOAD_FOLDER + '/' + self.excel_name_file)
         
-    def export_data(self, ):
-        self.accounts =  self.uof.AccountRepository.get_all()
-       
-        self.load_data()
+    def export_data(self, id_account:int=0, year:int=0, month=0):
+        self.TBL_Category = self.uof.CategoryRepository.to_dataframe()
+        self.TBL_DescriptionCategory = self.uof.DescriptionCategoryRepository.to_dataframe()
+        self.DIM_NR_Income = schema['DIM_NR_Income']
+        self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
+        self.accounts =  self.uof.AccountRepository.get_all() \
+                                            if id_account == 0 \
+                                            else self.uof.AccountRepository.find(lambda x: x.ID_Account == id_account)
+        if year == 0:
+            year = datetime.now().year
+        
+        self.base = self.load_data(self.TBL_Transactions)
+        self.categorias  = self._load_categories()
+        self.historico_df = self._load_historic()
+
+        self.base  = self.base[self.base['DT_TransactionDate'].dt.year == year]
+
+        if month >  0:
+            self.base  = self.base[self.base['DT_TransactionDate'].dt.month == month]
+        
+
+        
         for account in self.accounts:
-            self.sheets[account.DS_Name] = self._transform(account.ID_Account,account.NR_InitialAmount)
+            print(f'Generating sheet for account "{account.DS_Name}"')
+            self.sheets[account.DS_Name] = self._transform(self.base,account.ID_Account,account.NR_InitialAmount)
 
         # self.export_csv()
         self.export_xlsx()
@@ -271,36 +292,31 @@ class ExportationService:
         recursive(dict_)
         return sorted(key_list, key=lambda x: x['level'])
 
-    def load_data(self) -> None:
-        self.TBL_Category = self.uof.CategoryRepository.to_dataframe()
-        self.TBL_DescriptionCategory = self.uof.DescriptionCategoryRepository.to_dataframe()
-        self.DIM_NR_Income = schema['DIM_NR_Income']
-        self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
-        transactions = self.uof.TransactionsRepository.get_all()
-        self.base = pd.DataFrame({
-            'ID_Base': pd.Series(dtype='int',data=list(range(1,len(transactions)))),
-            'ID_Account': pd.Series(dtype='int', data=[t.ID_Account for t in transactions]),
-            'ID_Category': pd.Series(dtype='int', data=[t.ID_Category for t in transactions]),
-            'ID_AccountDestination': pd.Series(dtype='int', data=[t.ID_AccountDestination for t in transactions]),
-            'CD_Type': pd.Series(dtype='str', data=[t.CD_Type for t in transactions]),
-            'DT_TransactionDate': pd.Series(dtype='datetime64[ns]',data=[t.DT_TransactionDate for t in transactions]),
-            'DS_Description': pd.Series(dtype='str', data=[t.DS_Description for t in transactions]),
-            'NR_Value': pd.Series(dtype='float', data=[t.NR_Amount for t in transactions]),
-            'NR_Balance': pd.Series(dtype='float', data=[t.NR_Balance for t in transactions]),
+    def load_data(self,transactions: pd.DataFrame) -> pd.DataFrame:
+        base = pd.DataFrame({
+            'ID_Base': pd.Series(dtype='int',data=list(range(1,transactions.shape[0]))),
+            'ID_Account': transactions['ID_Account'],
+            'ID_Category': transactions['ID_Category'],
+            'ID_AccountDestination': transactions['ID_AccountDestination'],
+            'CD_Type': transactions['CD_Type'],
+            'DT_TransactionDate': transactions['DT_TransactionDate'],
+            'DS_Description': transactions['DS_Description'],
+            'NR_Value': transactions['NR_Amount'],
+            'NR_Balance': transactions['NR_Balance'],
         })
         
-        self.base['DT_TransactionDate'] = pd.to_datetime(self.base['DT_TransactionDate'])
-        self.base  = self.base.sort_values('DT_TransactionDate')
-        # self.base_df = self.base_df[sel]
-        self.categorias  = self._load_categories()
-        self.historico_df = self._load_historic()
-    
-    def _transform(self, id_account, initial_amount):
+        base['DT_TransactionDate'] = pd.to_datetime(base['DT_TransactionDate'])
+        return base.sort_values('DT_TransactionDate')
+
+        
+    def _transform(self, base, id_account, initial_amount):
         # Dimensions
-        self.base_df = self.base[(self.base['ID_Account'] == id_account) | (self.base['ID_AccountDestination'] == id_account )]
+        self.base_df = base[(self.base['ID_Account'] == id_account) | (base['ID_AccountDestination'] == id_account )]
 
         # dim_entrada
-        self.DIM_NR_Income = self.base_df[(self.base_df['CD_Type'] == 'Income') | ((self.base_df['CD_Type'] == 'Transfer') & (self.base_df['ID_AccountDestination'] == id_account))]['NR_Value']
+        self.DIM_NR_Income = self.base_df[(self.base_df['CD_Type'] == 'Income') \
+                                            | ( (self.base_df['CD_Type'] == 'Transfer') \
+                                                & (self.base_df['ID_AccountDestination'] == id_account) )]['NR_Value']
         self.DIM_NR_Income.drop_duplicates(inplace=True)
         self.DIM_NR_Income.reset_index(drop=True,inplace=True)
         self.DIM_NR_Income = self.DIM_NR_Income.to_frame()
@@ -308,7 +324,9 @@ class ExportationService:
         self.DIM_NR_Income['ID_Income'] = self.DIM_NR_Income['ID_Income'].astype(np.int64)
 
         # dim_saida
-        self.DIM_NR_Expense = self.base_df[(self.base_df['CD_Type'] == 'Expense') | ((self.base_df['CD_Type'] == 'Transfer') & (self.base_df['ID_Account'] == id_account))]['NR_Value']
+        self.DIM_NR_Expense = self.base_df[(self.base_df['NR_Value'] == 'Expense') \
+                                             | ((self.base_df['CD_Type'] == 'Transfer') \
+                                                & (self.base_df['ID_Account'] == id_account))]['NR_Value']
         self.DIM_NR_Expense.drop_duplicates(inplace=True)
         self.DIM_NR_Expense.reset_index(drop=True,inplace=True)
         self.DIM_NR_Expense = self.DIM_NR_Expense.to_frame()
@@ -350,46 +368,10 @@ class ExportationService:
         self.merged.drop(columns=['DS_Description', 'NR_Value', 'DT_TransactionDate','NR_Balance'], inplace=True,errors='ignore')
         self.DIM_NR_Expense['NR_Value'] = self.DIM_NR_Expense['NR_Value'].abs()
 
-
-        rows = self._find_keys(self.categorias)
-
-        self.dim_categoria = pd.DataFrame({
-            'ID_Category': pd.Series(np.arange(start=1,stop=len(rows)+1), dtype=np.int64),
-            'DS_Category': pd.Series([row['cat'] for row in rows], dtype=str),
-            # temp
-            'DS_CategoryParent': pd.Series([row['cat_parent'] for row in rows], dtype=str),
-            # temp
-            'DS_Description': pd.Series([row['value']  for row in rows], dtype=str),
-            'ID_CategoryParent': pd.Series([], dtype=np.int64),
-            'NR_Level': pd.Series([row['level'] for row in rows], dtype=np.int64)
-        })
-
-        tmp = self.dim_categoria.merge(self.dim_categoria,how='left',left_on='DS_CategoryParent', right_on='DS_Category')
-        self.dim_categoria[['ID_Category','DS_Category','ID_CategoryParent','NR_Level']] = tmp[['ID_Category_x','DS_Category_x','ID_Category_y','NR_Level_x']]
-        self.dim_categoria = self.dim_categoria.drop(columns=['DS_CategoryParent','DS_Description'])
-        self.dim_categoria.drop_duplicates(inplace=True)
-        self.dim_categoria['ID_Category'] = self.dim_categoria['ID_Category'].astype(np.int64)
-        self.dim_categoria['ID_CategoryParent'] = self.dim_categoria['ID_CategoryParent'].fillna(0)
-        self.dim_categoria['ID_CategoryParent'] = self.dim_categoria['ID_CategoryParent'].astype(np.int64)
-
-        self.dim_historico_categoria = pd.DataFrame([],columns=['ID_DS_Description','ID_Category'])
-        
-        self.dim_historico_categoria = self.DIM_DS_Description\
-                                        .merge(self.historico_df, how='left', on='DS_Description')\
-                                        .merge(self.dim_categoria, how='left', left_on='DS_Category',right_on='DS_Category')\
-                                        .drop_duplicates(['DS_Description','DS_Category'])[['ID_DS_Description','ID_Category']]
-    
-        self.dim_historico_categoria = self.dim_historico_categoria[['ID_DS_Description','ID_Category']]
-        self.dim_historico_categoria['ID_Category'] = self.dim_historico_categoria['ID_Category'].fillna(0)
-        self.dim_historico_categoria['ID_Category'] = self.dim_historico_categoria['ID_Category'].astype(np.int64)
-        self.dim_historico_categoria['ID_DS_Description'] = self.dim_historico_categoria['ID_DS_Description'].fillna(0)
-        self.dim_historico_categoria['ID_DS_Description'] = self.dim_historico_categoria['ID_DS_Description'].astype(np.int64)
-
-        self.cat_pais = self.dim_categoria[self.dim_categoria['NR_Level'] == 1]['DS_Category'].unique()
-        self.cats = self.dim_categoria[self.dim_categoria['NR_Level'] > 1]['DS_Category'].unique()
+        self.cat_pais = self.TBL_Category[self.TBL_Category['NR_Level'] == 1]['DS_Name'].unique()
+        self.cats = self.TBL_Category[self.TBL_Category['NR_Level'] > 1]['DS_Name'].unique()
 
         report = self._build_pivot_table(self.merged, initial_amount)
-        self.historico = self.build_historico(self.dim_historico_categoria, self.DIM_DS_Description, self.dim_categoria)
         return report
         
         
@@ -400,9 +382,9 @@ class ExportationService:
             .groupby(['DT_TransactionDate','ANO','MÊS','SEMANA','CATEGORIA'])\
             .sum([['ENTRADA','SAIDA']]).reset_index().drop(columns=['DT_TransactionDate'])
         filtro = report
-        filtro = pd.merge(filtro, self.dim_categoria, how='left',  left_on='CATEGORIA', right_on='DS_Category')
-        filtro = pd.merge(filtro, self.dim_categoria, how='left',  left_on='ID_CategoryParent', right_on='ID_Category')
-        filtro['CATEGORIA_PAI'] = filtro['DS_Category_y']
+        filtro = pd.merge(filtro, self.TBL_Category, how='left',  left_on='CATEGORIA', right_on='DS_Name')
+        filtro = pd.merge(filtro, self.TBL_Category, how='left',  left_on='ID_CategoryParent', right_on='ID_Category')
+        filtro['CATEGORIA_PAI'] = filtro['DS_Name_y']
         filtro =  filtro[['ANO', 'MÊS','SEMANA', 'CATEGORIA', 'CATEGORIA_PAI','ENTRADA', 'SAIDA']]
         filtro['NR_Value'] = filtro['ENTRADA'] + filtro['SAIDA']
         filtro['CATEGORIA_PAI']  = filtro['CATEGORIA_PAI'].fillna('Desconhecido')
@@ -450,13 +432,6 @@ class ExportationService:
         pivot_table = pivot_table.drop(columns=['CATEGORIA_PAI'])
         return pivot_table 
     
-    def build_historico(self, dim_historico_categoria: pd.DataFrame, dim_historico: pd.DataFrame, dim_categoria: pd.DataFrame):
-        return dim_historico_categoria\
-                    .merge(dim_historico,how='left')\
-                    .merge(dim_categoria, how='left')\
-                    .rename(columns={'DS_Category': 'CATEGORIA'})[['DS_Description','CATEGORIA']]\
-                    .fillna('desconhecido')\
-                    .drop_duplicates(['DS_Description','CATEGORIA'])
     
     def calc_income(self, report, pivot_table: pd.DataFrame, idx: int):
         # MÊS , SEMANA 
@@ -474,23 +449,22 @@ class ExportationService:
         return init_balance + receitas - despesas
    
     def build_weekly_report(self,fat_table: pd.DataFrame):
-        report = fat_table.merge(self.DIM_DS_Description, how='left')\
-                .merge(self.dim_historico_categoria, how='left')\
-                .merge(self.dim_categoria, how='left')\
-                .merge(self.DIM_NR_Balance, how='left')\
-                .merge(self.DIM_NR_Income, how='left')\
-                    .rename(columns={'NR_Value':'ENTRADA'})\
-                .merge(self.DIM_NR_Expense, how='left')\
-                    .rename(columns={'NR_Value':'SAIDA'})\
-                .merge(self.DIM_DT_TransactionDate, how='left')\
-                .sort_values(by=['DT_TransactionDate'])
+        report = fat_table.merge(self.TBL_Category, how='left', on='ID_Category')
+        report = report.merge(self.DIM_NR_Balance, how='left')
+        report = report.merge(self.DIM_NR_Income, how='left')\
+                           .rename(columns={'NR_Value':'ENTRADA'})
+        report = report.merge(self.DIM_NR_Expense, how='left')\
+                            .rename(columns={'NR_Value':'SAIDA'})
+        report = report.merge(self.DIM_DT_TransactionDate, how='left')
+        report = report.sort_values(by=['DT_TransactionDate'])
 
         report[['ENTRADA','SAIDA']] = report[['ENTRADA','SAIDA']].fillna(0)
-        report['MÊS'] = report['DT_TransactionDate'].apply(lambda d: MESES[d.month])
-        report['MÊS'] = pd.Categorical(report['MÊS'], MESES.values())
+        translated_months = report['DT_TransactionDate'].apply(lambda d: MESES[d.month])
+        report['MÊS'] = translated_months
+        report['MÊS'] = pd.Categorical(report['MÊS'], translated_months.unique())
         report['ANO'] = report['DT_TransactionDate'].dt.year
         report['SEMANA'] = self._calc_week(report['DT_TransactionDate'])
-        report['CATEGORIA'] = report['DS_Category'].fillna('desconhecido')
+        report['CATEGORIA'] = report['DS_Name'].fillna('desconhecido')
         return report
     
     def _calc_week(self, series: pd.Series) -> pd.Series:
@@ -511,31 +485,56 @@ class ExportationService:
         return self.TBL_DescriptionCategory.merge(self.TBL_Category)\
                         .rename(columns={'DS_Name': 'DS_Category'})[['DS_Description','DS_Category']]
     
-    def import_statement(self, statement_path: str, bank_name: str, id_account: int) -> None:
+    def import_statement(self, command:ImportationCommand):
         self.TBL_Category = self.uof.CategoryRepository.to_dataframe()
         self.TBL_DescriptionCategory = self.uof.DescriptionCategoryRepository.to_dataframe()
         self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
+        errors = pd.DataFrame()
+        duplicates = pd.DataFrame()
 
-        if bank_name == 'inter':
-            self.tmp = adapters.bank_statement.inter.load_statement(statement_path)
+        if command['bank_name'] == 'inter':
+            self.tmp = adapters.bank_statement.inter.load_statement(command['statement_path'],\
+                                                                    skip_rows=command['skip_rows'])
         else:
             raise Exception('Bank not implemented')
-        errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
         
-        last_id  = self.TBL_Transactions.ID_Transaction.max()
-        if np.isnan(last_id):
-            last_id = 0
-        last_id = last_id + 1
-        self.tmp['ID_Transaction'] = pd.Series(list(range(last_id, last_id + len(self.tmp))))
-        self.tmp['ID_Account'] = pd.Series(id_account, index=self.tmp.index)
+        ## TODO:
+        ## Check if the statement is already imported: composite key: (ID_Account, DS_Description,DT_TransactionDate,NR_Balance,NR_Value,CD_Type)
+        composite_key = ['ID_Account','DS_Description','DT_TransactionDate','NR_Balance','NR_Amount','CD_Type']
         self.tmp['CD_Type'] = self.tmp['NR_Value'].apply(lambda x: 'Income' if x > 0 else 'Expense')
         self.tmp['NR_Amount'] = self.tmp['NR_Value'].apply(lambda x: abs(x))
-        self.tmp['IC_Imported'] = True
-        self.tmp['DT_ImportedDate'] = pd.to_datetime('now')
-        self.tmp['DT_ImportedDate'] = self.tmp['DT_ImportedDate'].astype('datetime64[ns]')
-        self.tmp['DT_RegistrationDate'] = pd.to_datetime('now')
-        self.tmp['DT_RegistrationDate'] =self.tmp['DT_RegistrationDate'].astype('datetime64[ns]')
-        self.TBL_Transactions = pd.concat([self.TBL_Transactions, self.tmp.drop(['NR_Value'], axis=1)], sort=False)
-        ## validações
-        # self.base_df = self.base_df.drop_duplicates()
-        self.uof.TransactionsRepository._update_cells(self.TBL_Transactions)
+        self.tmp['ID_Account'] = pd.Series(command['id_account'], index=self.tmp.index)        
+        search_duplicates = pd.concat([self.tmp[composite_key],self.TBL_Transactions[composite_key]]).reset_index()
+        duplicates = search_duplicates[search_duplicates.duplicated(subset=composite_key,keep=False)]\
+                                                                 .drop_duplicates(subset=composite_key)[composite_key]
+        d = pd.merge(self.tmp,duplicates,on=composite_key,how='outer', indicator='Exist')
+        self.tmp = d[d['Exist'] == 'left_only']
+        self.tmp.drop(columns=['Exist'], inplace=True)
+        if self.tmp.shape[0] > 0:
+            last_id  = self.TBL_Transactions.ID_Transaction.max()
+            if np.isnan(last_id):
+                last_id = 0
+            last_id = int(last_id) + 1
+            self.tmp['ID_Transaction'] = pd.Series(list(range(last_id, last_id + self.tmp.shape[0])), index=self.tmp.index)
+            self.tmp['IC_Imported'] = True
+            self.tmp['DT_ImportedDate'] = pd.to_datetime(datetime.now())
+            self.tmp['DT_ImportedDate'] = self.tmp['DT_ImportedDate'].astype('datetime64[ns]')
+            self.tmp['DT_RegistrationDate'] = pd.to_datetime(datetime.now())
+            self.tmp['DT_RegistrationDate'] =self.tmp['DT_RegistrationDate'].astype('datetime64[ns]')
+            errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
+            # I get the ID_Category from the TBL_DescriptionCategory
+            self.tmp = pd.merge(self.tmp, self.TBL_DescriptionCategory, how='left', on='DS_Description')
+            
+            self.TBL_Transactions = pd.concat([self.TBL_Transactions, 
+                                                self.tmp.drop(columns=['NR_Value'])], sort=False)
+            ## validações
+            # self.base_df = self.base_df.drop_duplicates()
+            self.uof.TransactionsRepository._update_cells(self.TBL_Transactions)
+        
+
+
+
+        if errors.shape[0] > 0 or duplicates.shape[0] > 0:
+            return {'errors': errors.to_dict('records'), 'duplicates': duplicates.to_dict('records')}
+        else:
+            return None

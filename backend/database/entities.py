@@ -53,13 +53,3 @@ class TBL_DescriptionCategory:
 class TBL_DescriptionTransfer:
     DS_Description  = column(str(250), required=True)
     ID_Transfer = column(int,required=True)
-
-
-@entity()
-class DW_Base:
-    ID_Base = column(int,primary_key=True, increment=True,required=True)
-    ID_Account = column(int)
-    DT_TransactionDate = column(datetime)
-    DS_Description = column(str(250))
-    NR_Value = column(float)
-    NR_Balance = column(float)

@@ -1,56 +1,46 @@
-import { IconButton } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { BsArrowClockwise,BsPlusCircleFill, BsFillPencilFill,BsFillTrashFill } from "react-icons/bs";
+import Button from 'react-bootstrap/Button'
 
 
 export const RefreshButton = (props) => {
     return (
-        <IconButton
-            onClick={props.onClick}
-            color="primary"
-            aria-label="Refresh"
-        >
-            <RefreshIcon />
-        </IconButton>
+        <Button onClick={props.onClick} color="green" {...props}>
+            <BsArrowClockwise />
+        </Button>
     );
 };
 
 
 export const AddButton = (props) => {
     return (
-        <IconButton
+        <Button
             onClick={props.onClick}
-            color="primary"
-            aria-label="Add"
+            variant="success" {...props}
                     >
-            <AddIcon />
-        </IconButton>
+            <BsPlusCircleFill />
+        </Button>
     );
 };
 
 export const EditButton = (props) => {
     return (
-        <IconButton
+        <Button
             onClick={props.onClick}
-            color="secondary"
-            aria-label="Edit"
+            variant="success" {...props}
         >
-            <EditIcon />
-        </IconButton>
+            <BsFillPencilFill />
+        </Button>
     );
 };
 
 
 export const DeleteButton = (props) => {
     return (
-        <IconButton
+        <Button
             onClick={props.onClick}
-            color="error"
-            aria-label="Delete"
+            variant="danger" {...props}
         >
-            <DeleteIcon />
-        </IconButton>
+            <BsFillTrashFill />
+        </Button>
     );
 };

@@ -1,43 +1,31 @@
-import { useState,useEffect } from 'react';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
-import FormHelperText from '@mui/material/FormHelperText';
-import FormControl from '@mui/material/FormControl';
-import Select from '@mui/material/Select';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import api from '../../../../services/api';
 
-
-
-export default function AccountSelect({onAccountChange, list}) {
-    const [account, setAccount] = useState('');
+import Form from 'react-bootstrap/Form';
+export default function AccountSelect({ onAccountChange }) {
+    const [account, setAccount] = useState('1');
     const [accounts, setAccounts] = useState([]);
     const { t } = useTranslation();
 
     useEffect(() => {
-        setAccounts(list ? list : [{text:'Conta bancária', value:1}, {text:'Carteira', value:2}]);
+        api.get('/accounts/autocomplete',).then(d => {
+            setAccounts(d.data.data.map(d => ({ text: d.name, value: d.id })));
+        })
     }, [])
-    
+
     const handleChange = (event) => {
         setAccount(event.target.value);
-       if(onAccountChange) onAccountChange(event.target.value);
+        if (onAccountChange) onAccountChange(event.target.value);
     };
+
     return (
-        <div>
-            <FormControl sx={{ m: 1, minWidth: 200 }}>
-            <InputLabel id="demo-simple-select-helper-label">{t('labels.account')}</InputLabel>
-            <Select
-                value={account}
-                label={t('labels.account')}
-                onChange={handleChange}
-            >
-                <MenuItem value="0">
-                    <em>None</em>
-                </MenuItem>
-                {accounts.map((account, index) => (
-                    <MenuItem key={index} value={account.value}>{account.text}</MenuItem>
-                ))}
-            </Select>
-            </FormControl>
-        </div>
+        accounts == [] ? <div> Loading ...</div>
+            :
+            <Form.Select aria-label="Default select example" onChange={handleChange} defaultValue={account}>
+                <option value="0">{t('labels.account')}</option>
+                {accounts.map((account, index) =>
+                    <option key={index} value={account.value}>{account.text}</option>)}
+            </Form.Select>
     )
 }

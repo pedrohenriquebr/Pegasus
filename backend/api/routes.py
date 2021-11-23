@@ -8,6 +8,7 @@ from flask_cors import CORS, cross_origin
 from api.auth import auth
 from api.uof import Uof 
 from api.caching import cache
+from api.models import ImportationCommand
 
 _uof  = Uof(Connection.get_connection())
 transactions_service = TransactionsService(_uof)
@@ -85,7 +86,10 @@ exportation_page = Blueprint('exportation', __name__)
 @cross_origin()
 @auth.login_required
 def download_exportation():
-    return download_file(exportation_service.export_data())
+    id_account = int(request.args.get('id_account',0))
+    year = int(request.args.get('year',0))
+    month =int(request.args.get('month',0))
+    return download_file(exportation_service.export_data(id_account, year, month))
 
 
 @exportation_page.route('/upload', methods=['POST'])
@@ -106,8 +110,25 @@ def upload_file():
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file.save(os.path.join(config.UPLOAD_FOLDER, filename))
-        exportation_service.import_statement(os.path.join(config.UPLOAD_FOLDER, filename),request.form.get('bank',type=str),request.form.get('id_account',type=int))
+        try:
+            command: ImportationCommand = {
+                'statement_path': os.path.join(config.UPLOAD_FOLDER, filename),
+                'bank_name':request.form.get('bank',type=str,default=''),
+                'id_account':request.form.get('id_account',type=int, default=0),
+                'skip_rows': request.form.get('skip_rows',type=int, default=5),
+            }
+            rs  = exportation_service.import_statement(command)
+            if rs is not None:
+                message = ''
+                if len(rs['errors']) >0:
+                    message += 'There are some records without category\n'
+                if len(rs['duplicates']) > 0:
+                    message += 'There are some duplicated records\n'
+                return jsonify({'status':'warning','message':message, 'data':rs})
+        except Exception as e:
+            return jsonify({"status":"error", "error": str(e)})
+        
         return jsonify({"status": "success"})
     else:
         ## send error status
-        return jsonify({"status": "error"})
+        return jsonify({"status": "error", "error": "File not allowed"})

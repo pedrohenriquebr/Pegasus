@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash
 
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__,static_folder='../build',static_url_path='/')
     cache.init_app(app)
     app.config['UPLOAD_FOLDER'] = config.UPLOAD_FOLDER
     app.config['USER'] = environ.get('USER')

@@ -1,22 +1,20 @@
+import Container from 'react-bootstrap/Container';
+import Navbar from 'react-bootstrap/Navbar';
+import Nav from 'react-bootstrap/Nav';
+import NavDropdown from 'react-bootstrap/NavDropdown';
 
-import AppBar from '@mui/material/AppBar';
-import { Toolbar } from '@mui/material';
-import Typography from '@mui/material/Typography';
+
 
 import MainMenu from '../MainMenu';
 import TranslateMenu from '../TranslateMenu';
-
-
 export const HomeAppBar = () => {
     return (
-        <AppBar position="static">
-            <Toolbar>
+        <Navbar bg="light" expand="lg">
+            <Container>
                 <MainMenu />
-                <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-                    Pegasus
-                </Typography>
-                <TranslateMenu />
-            </Toolbar>
-        </AppBar>
+                <Navbar.Brand href="#home">Pegasus</Navbar.Brand>
+                <TranslateMenu/>
+            </Container>
+        </Navbar>
     )
 }
