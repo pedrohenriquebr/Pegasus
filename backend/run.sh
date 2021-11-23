@@ -1,1 +1,1 @@
-gunicorn wsgi:api
+cd backend && gunicorn wsgi:api
