@@ -24,6 +24,7 @@
     "react-icons": "^4.3.1",
     "react-router-dom": "^6.0.2",
     "react-scripts": "4.0.3",
+    "run-script-os": "^1.1.6",
     "web-vitals": "^1.0.1"
   },
   "scripts": {
@@ -31,7 +32,9 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "deploy": "cp -r "
+    "deploy": "run-script-os",
+    "deploy:win32": "xcopy  build\\* ..\\backend\\build\\ /E /Y",
+    "deploy:darwin:linux": "mkdir -p ../backend/build && cp -rf build/* ../backend/build"
   },
   "eslintConfig": {
     "extends": [
