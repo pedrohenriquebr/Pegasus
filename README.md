@@ -140,6 +140,7 @@ Download the latest release from [GitHub releases](https://github.com/pedrohenri
 
 Extract the archive
 
+
 Enter the directory
 
 Run the following command
@@ -147,8 +148,10 @@ Run the following command
 For Windows:
 
 ```bash
+
 $ install.bat
 $ run.bat
+
 ```
 For unix-like systems:
 
@@ -162,6 +165,7 @@ remove the line with ENV=dev
 Fill the lines with your credentials.
 
 > Note: the user and password are the same as the ones used to access the web app. It is used only for the authentication.
+
 
 
 <!-- ROADMAP -->
