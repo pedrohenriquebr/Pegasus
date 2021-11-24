@@ -14,7 +14,7 @@ export default function TransactionPage() {
     const { t } = useTranslation();
     const [accountId, setAccountId] = useState(1);
     return (
-        <Container expand="lg">
+        <>
             <Row>
                 <Col>
                     <h1>{t('transactions.title')}</h1></Col>
@@ -24,7 +24,7 @@ export default function TransactionPage() {
                     <AccountSelect onAccountChange={d => setAccountId(d)} />
                 </Col>
                 <Col md={{ span: 3, offset: 10 }} style={{ display: 'flex', justifyContent: 'space-around' }}>
-                    <RefreshButton  onClick={() => setAccountId(accountId)} />
+                    <RefreshButton onClick={() => setAccountId(accountId)} />
                     <AddButton />
                     <EditButton />
                     <DeleteButton />
@@ -35,6 +35,6 @@ export default function TransactionPage() {
                     <Grid accountId={accountId} />
                 </Col>
             </Row>
-        </Container>
+        </>
     );
 }

@@ -437,16 +437,16 @@ class ExportationService:
         # MÊS , SEMANA 
         month, week = pivot_table.columns[idx][1], pivot_table.columns[idx][2]
         temp2  = report[(report['MÊS'] == month) & (report['SEMANA'] == week)]
-        return temp2['ENTRADA'].sum()
+        return round(temp2['ENTRADA'].sum(),10)
 
     def calc_balance(self, init_balance, origin_report, pivot_table: pd.DataFrame, idx: int):
         # MÊS , SEMANA 
         month, week = pivot_table.columns[idx][1], pivot_table.columns[idx][2]
 
         temp2  = origin_report[(origin_report['MÊS'] == month) & (origin_report['SEMANA'] == week)]
-        receitas = temp2['ENTRADA'].sum()
-        despesas = temp2['SAIDA'].sum()
-        return init_balance + receitas - despesas
+        receitas = round(temp2['ENTRADA'].sum(), 10)
+        despesas = round(temp2['SAIDA'].sum(), 10)
+        return round(init_balance + receitas - despesas,10)
    
     def build_weekly_report(self,fat_table: pd.DataFrame):
         report = fat_table.merge(self.TBL_Category, how='left', on='ID_Category')
@@ -489,8 +489,9 @@ class ExportationService:
         self.TBL_Category = self.uof.CategoryRepository.to_dataframe()
         self.TBL_DescriptionCategory = self.uof.DescriptionCategoryRepository.to_dataframe()
         self.TBL_Transactions = self.uof.TransactionsRepository.to_dataframe()
-        errors = pd.DataFrame()
-        duplicates = pd.DataFrame()
+        self.errors = pd.DataFrame()
+        self.duplicates = pd.DataFrame()
+        self.statement_duplicates = pd.DataFrame()
 
         if command['bank_name'] == 'inter':
             self.tmp = adapters.bank_statement.inter.load_statement(command['statement_path'],\
@@ -505,11 +506,17 @@ class ExportationService:
         self.tmp['NR_Amount'] = self.tmp['NR_Value'].apply(lambda x: abs(x))
         self.tmp['ID_Account'] = pd.Series(command['id_account'], index=self.tmp.index)        
         search_duplicates = pd.concat([self.tmp[composite_key],self.TBL_Transactions[composite_key]]).reset_index()
-        duplicates = search_duplicates[search_duplicates.duplicated(subset=composite_key,keep=False)]\
+        self.statement_duplicates = self.tmp[self.tmp[composite_key].duplicated()]
+        self.duplicates = search_duplicates[search_duplicates.duplicated(subset=composite_key,keep=False)]\
                                                                  .drop_duplicates(subset=composite_key)[composite_key]
-        d = pd.merge(self.tmp,duplicates,on=composite_key,how='outer', indicator='Exist')
-        self.tmp = d[d['Exist'] == 'left_only']
-        self.tmp.drop(columns=['Exist'], inplace=True)
+
+        self.duplicates = self.duplicates.merge(self.statement_duplicates, how='outer', on=composite_key, indicator='Exist')
+        self.duplicates = self.duplicates[self.duplicates['Exist'] == 'left_only'].drop(columns=['Exist'])
+
+        d = pd.merge(self.tmp,self.duplicates,on=composite_key,how='outer', indicator='Exist')
+        self.tmp = d[d['Exist'] == 'left_only'].drop(columns=['Exist','NR_Value_y'])
+        self.tmp.rename(columns={'NR_Value_x':'NR_Value'}, inplace=True)
+        
         if self.tmp.shape[0] > 0:
             last_id  = self.TBL_Transactions.ID_Transaction.max()
             if np.isnan(last_id):
@@ -521,7 +528,7 @@ class ExportationService:
             self.tmp['DT_ImportedDate'] = self.tmp['DT_ImportedDate'].astype('datetime64[ns]')
             self.tmp['DT_RegistrationDate'] = pd.to_datetime(datetime.now())
             self.tmp['DT_RegistrationDate'] =self.tmp['DT_RegistrationDate'].astype('datetime64[ns]')
-            errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
+            self.errors = self.tmp[~self.tmp.DS_Description.isin(self.TBL_DescriptionCategory.DS_Description)]
             # I get the ID_Category from the TBL_DescriptionCategory
             self.tmp = pd.merge(self.tmp, self.TBL_DescriptionCategory, how='left', on='DS_Description')
             
@@ -534,7 +541,9 @@ class ExportationService:
 
 
 
-        if errors.shape[0] > 0 or duplicates.shape[0] > 0:
-            return {'errors': errors.to_dict('records'), 'duplicates': duplicates.to_dict('records')}
+        if self.errors.shape[0] > 0 or self.duplicates.shape[0] > 0 or self.statement_duplicates.shape[0] > 0:
+            return {'errors': self.errors.to_dict('records'), 
+                    'duplicates': self.duplicates.to_dict('records'),
+                    'statement_duplicates': self.statement_duplicates.to_dict('records')}
         else:
             return None

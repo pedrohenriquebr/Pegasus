@@ -12,7 +12,7 @@ export const HomeAppBar = () => {
         <Navbar bg="light" expand="lg">
             <Container>
                 <MainMenu />
-                <Navbar.Brand href="#home">Pegasus</Navbar.Brand>
+                <Navbar.Brand href="/">Pegasus</Navbar.Brand>
                 <TranslateMenu/>
             </Container>
         </Navbar>

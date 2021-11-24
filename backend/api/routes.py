@@ -124,6 +124,8 @@ def upload_file():
                     message += 'There are some records without category\n'
                 if len(rs['duplicates']) > 0:
                     message += 'There are some duplicated records\n'
+                if len(rs['statement_duplicates']) > 0:
+                    message += 'There are some duplicated statement records\n'
                 return jsonify({'status':'warning','message':message, 'data':rs})
         except Exception as e:
             return jsonify({"status":"error", "error": str(e)})

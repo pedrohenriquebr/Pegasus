@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../../services/api';
 
 import Form from 'react-bootstrap/Form';
-export default function AccountSelect({ onAccountChange }) {
+export default function AccountSelect({ onAccountChange, isInvalid, children, ...props }) {
     const [account, setAccount] = useState('1');
     const [accounts, setAccounts] = useState([]);
     const { t } = useTranslation();
@@ -22,10 +22,14 @@ export default function AccountSelect({ onAccountChange }) {
     return (
         accounts == [] ? <div> Loading ...</div>
             :
-            <Form.Select aria-label="Default select example" onChange={handleChange} defaultValue={account}>
+            <Form.Group {...props}> 
+            <Form.Label>Select an account</Form.Label>
+            <Form.Select isInvalid={isInvalid} aria-label="Default select example" onChange={handleChange} defaultValue={account}>
                 <option value="0">{t('labels.account')}</option>
                 {accounts.map((account, index) =>
                     <option key={index} value={account.value}>{account.text}</option>)}
             </Form.Select>
+            {children}
+            </Form.Group>
     )
 }

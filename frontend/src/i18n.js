@@ -34,6 +34,7 @@ i18n
             account: 'Account',
             category: 'Category',
             amount: 'Amount',
+            bank: 'Bank',
           }
         },
       },
@@ -58,6 +59,7 @@ i18n
             account: 'Conta',
             category: 'Categoria',
             amount: 'Quantia',
+            bank: 'Banco',
         },
 
         }

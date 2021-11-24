@@ -13,7 +13,7 @@ export default function MainMenu() {
             <Dropdown.Menu>
                 <Dropdown.Item href="#">{t('appbar.appmenu.accounts')}</Dropdown.Item>
                 <Dropdown.Item href="#">{t('appbar.appmenu.categories')}</Dropdown.Item>
-                <Dropdown.Item href="#">{t('appbar.appmenu.import')}</Dropdown.Item>
+                <Dropdown.Item href="/transactions/importation">{t('appbar.appmenu.import')}</Dropdown.Item>
                 <Dropdown.Item href="#">{t('appbar.appmenu.export')}</Dropdown.Item>
                 <Dropdown.Item href="#">{t('appbar.appmenu.settings')}</Dropdown.Item>
             </Dropdown.Menu>
