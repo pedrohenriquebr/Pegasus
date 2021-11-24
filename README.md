@@ -83,6 +83,11 @@ To get a local copy up and running follow these simple steps.
 
 ### Prerequisites
 
+- [Create credentials in Google API Console](https://docs.gspread.org/en/latest/oauth2.html)
+
+- [Python 3.9.5](https://www.python.org/downloads/release/python-395/)
+
+
 ### Installation
 
 1. Clone the repo
