@@ -35,7 +35,10 @@ i18n
             category: 'Category',
             amount: 'Amount',
             bank: 'Bank',
-          }
+          },
+          error: 'Error',
+         success: 'Sucess'
+
         },
       },
       ptBr: {
@@ -61,7 +64,8 @@ i18n
             amount: 'Quantia',
             bank: 'Banco',
         },
-
+         error: 'Erro',
+         success: 'Sucesso'
         }
       }
     }
