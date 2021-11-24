@@ -70,6 +70,9 @@
 * [Python 3.9.5](https://www.python.org/downloads/release/python-395/)
 * [Pandas](https://pandas.pydata.org/docs/getting_started/index.html)
 * [Openpyxl](https://openpyxl.readthedocs.io/en/stable/)
+* [Flask](https://flask.palletsprojects.com/en/2.0.x/)
+* [gspread](https://docs.gspread.org/en/v4.0.1/)
+* [SheetsORM](https://pypi.org/project/sheetsorm/)
 
 
 
@@ -79,6 +82,11 @@
 To get a local copy up and running follow these simple steps.
 
 ### Prerequisites
+
+- [Create credentials in Google API Console](https://docs.gspread.org/en/latest/oauth2.html)
+
+- [Python 3.9.5](https://www.python.org/downloads/release/python-395/)
+
 
 ### Installation
 
@@ -91,51 +99,73 @@ To get a local copy up and running follow these simple steps.
    pip install -r requirements.txt
    ```
 
-
-
-<!-- USAGE EXAMPLES -->
-## Usage
-
-
-Fill the `template.xlsx` with needed information
-The tab `categorias` with each category following child category
-The tab `historico` is where you  associative table, the column HISTORICO contains the name
-and CATEGORIA for the sub category.
-
-After that, call the main script via CLI.
-
-```bash
-foo@bar$ python main.py --filename extrato_template.xlsx
-```
-
-> the first time you use the script, add --filename in prompt for load initial data.
-> for future data loading, check the extrato_template.csv if it was following the template schema
-
-the finance report will be in the same template.xlsx file on `report` tab
-
-
-_For more examples, please refer to the [Documentation](https://example.com)_
-
-# Running locally
+# Usage
 
 ## local environment
 
-```bash
-$ pip install -r requirements.dev.txt
-$ cd backend && waitress-serve --listen=*:8000 wsgi:app 
-```
-
-## Unix-like environment
+### Frontend
 
 ```bash
-$ cd backend && gunicorn wsgi:app
+$ cd frontend
+$ yarn
+$ yarn start
 ```
 
-## Heroku
+### Backend
 
 ```bash
-$ heroku local
+$ cd backend
+$ run.dev.bat
 ```
+
+### Setting up the environment
+
+open the .env file and set the following variables:
+
+```bash
+CREDENTIALS_FILE_URL=a link or path to the credentials file
+ENV=dev
+PASSWORD=provide a password to access the web app
+SPREADSHEET_NAME=Spreadsheet name
+USER=username
+USER_EMAIL=email to own the spreadsheet
+REACT_APP_PASSWORD=same password
+REACT_APP_USER=same user
+```
+
+
+## Using releases
+
+Download the latest release from [GitHub releases](https://github.com/pedrohenriquebr/Pegasus/releases)
+
+Extract the archive
+
+
+Enter the directory
+
+Run the following command
+
+For Windows:
+
+```bash
+
+$ install.bat
+$ run.bat
+
+```
+For unix-like systems:
+
+```bash
+$ install.sh
+$ run.sh
+```
+
+Open the api directory and changes the .env file 
+remove the line with ENV=dev
+Fill the lines with your credentials.
+
+> Note: the user and password are the same as the ones used to access the web app. It is used only for the authentication.
+
 
 
 <!-- ROADMAP -->
